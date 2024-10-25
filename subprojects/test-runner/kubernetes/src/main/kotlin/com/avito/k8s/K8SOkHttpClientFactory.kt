@@ -2,7 +2,7 @@ package com.avito.k8s
 
 import com.avito.android.stats.StatsDSender
 import com.avito.http.RetryInterceptor
-import com.avito.http.StatsHttpEventListener
+import com.avito.http.StatsDHttpEventListener
 import com.avito.logger.LoggerFactory
 import com.avito.time.TimeProvider
 import io.fabric8.kubernetes.client.okhttp.OkHttpClientFactory
@@ -23,7 +23,7 @@ public class K8SOkHttpClientFactory(
             .addInterceptor(RetryInterceptor(retries = httpTries))
             .addInterceptor(HttpLoggingInterceptor(logger::debug).apply { level = HttpLoggingInterceptor.Level.BODY })
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsDSender,
                     timeProvider = timeProvider,
                     requestMetadataProvider = KubernetesRequestMetadataProvider(),

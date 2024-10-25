@@ -2,7 +2,8 @@ package com.avito.test.summary
 
 import com.avito.android.stats.StatsDConfig
 import com.avito.android.stats.StatsDSender
-import com.avito.http.StatsHttpEventListener
+import com.avito.http.StatsDHttpEventListener
+import com.avito.http.TagRequestMetadataProvider
 import com.avito.logger.LoggerFactory
 import com.avito.reportviewer.ReportsApi
 import com.avito.reportviewer.ReportsApiFactory
@@ -25,9 +26,10 @@ internal class TestSummaryDI(
         return ReportsApiFactory.create(
             host = reportsHost,
             builder = OkHttpClient.Builder().eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsdSender,
                     timeProvider = timeProvider,
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory,
                 )
             },

@@ -1,16 +1,18 @@
 package com.avito.android.graphite
 
+import androidx.annotation.RequiresApi
 import com.avito.graphite.series.SeriesName
 import java.time.Instant
 
 /**
  * Incubating
  */
-public class GraphiteMetric private constructor(
+public class GraphiteMetric public constructor(
     public val path: SeriesName,
     public val value: String,
-    public val timeInSec: Long,
+    public val timeInSec: Long = -1,
 ) {
+    @RequiresApi(26)
     public constructor(
         path: SeriesName,
         value: String,
@@ -18,8 +20,8 @@ public class GraphiteMetric private constructor(
          * The number of seconds since unix epoch time.
          * Carbon will use the time of arrival if the timestamp is set to -1.
          */
-        time: Instant? = null,
-    ) : this(path, value, time?.epochSecond ?: -1)
+        time: Instant,
+    ) : this(path, value, time.epochSecond)
 
     internal fun withPrefix(seriesName: SeriesName): GraphiteMetric {
         return GraphiteMetric(

@@ -9,7 +9,8 @@ import com.avito.android.runner.devices.internal.kubernetes.KubernetesReservatio
 import com.avito.android.runner.devices.internal.kubernetes.ReservationDeploymentFactoryProvider
 import com.avito.android.stats.StatsDSender
 import com.avito.graphite.series.SeriesName
-import com.avito.http.StatsHttpEventListener
+import com.avito.http.StatsDHttpEventListener
+import com.avito.http.TagRequestMetadataProvider
 import com.avito.k8s.K8SOkHttpClientFactory
 import com.avito.k8s.KubernetesApiFactory
 import com.avito.k8s.KubernetesClientFactory
@@ -43,9 +44,10 @@ public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFacto
         )
         val httpClientBuilder = OkHttpClient.Builder()
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsDSender,
                     timeProvider = timeProvider,
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory,
                 )
             }

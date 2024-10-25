@@ -43,9 +43,10 @@ internal open class BaseHttpClientProviderMetricsTest {
     protected fun createClientBuilder(): OkHttpClient.Builder {
         return OkHttpClient.Builder()
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsDSender,
                     timeProvider = DefaultTimeProvider(),
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory,
                 )
             }

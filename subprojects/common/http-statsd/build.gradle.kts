@@ -6,6 +6,7 @@ plugins {
 dependencies {
     api(project(":subprojects:common:time"))
     api(project(":subprojects:common:statsd"))
+    api(project(":subprojects:common:graphite"))
     api(project(":subprojects:logger:logger"))
     api(project(":subprojects:common:okhttp"))
 

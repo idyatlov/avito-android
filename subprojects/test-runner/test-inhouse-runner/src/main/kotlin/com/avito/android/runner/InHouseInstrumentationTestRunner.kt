@@ -49,7 +49,8 @@ import com.avito.android.test.step.StepDslDelegateImpl
 import com.avito.android.transport.ReportDestination
 import com.avito.android.transport.ReportTransportFactory
 import com.avito.android.util.DeviceSettingsChecker
-import com.avito.http.StatsHttpEventListener
+import com.avito.http.StatsDHttpEventListener
+import com.avito.http.TagRequestMetadataProvider
 import com.avito.logger.LogLevel
 import com.avito.logger.LoggerFactory
 import com.avito.logger.LoggerFactoryBuilder
@@ -84,12 +85,13 @@ public abstract class InHouseInstrumentationTestRunner(
     private val httpClientBuilder: OkHttpClient.Builder by lazy {
         OkHttpClient.Builder()
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = StatsDSender.create(
                         config = testRunEnvironment.asRunEnvironmentOrThrow().statsDConfig,
                         loggerFactory = loggerFactory
                     ),
                     timeProvider = timeProvider,
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory
                 )
             }
