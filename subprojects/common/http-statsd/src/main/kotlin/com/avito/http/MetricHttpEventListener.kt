@@ -15,6 +15,7 @@ import java.net.SocketTimeoutException
 public abstract class MetricHttpEventListener(
     private val timeProvider: TimeProvider,
     private val requestMetadataProvider: RequestMetadataProvider,
+    private val metricPrefix: SeriesName,
     loggerFactory: LoggerFactory,
 ) : EventListener() {
 
@@ -80,7 +81,7 @@ public abstract class MetricHttpEventListener(
     private fun serviceMetric(request: Request): Result<SeriesName> {
         return requestMetadataProvider.provide(request)
             .map {
-                SeriesName.create("${it.serviceName}.${it.methodName}", multipart = true)
+                metricPrefix.append(it.serviceName, it.methodName)
             }.onFailure { error ->
                 val urlWithoutParams = request.url.newBuilder()
                     .query(null)

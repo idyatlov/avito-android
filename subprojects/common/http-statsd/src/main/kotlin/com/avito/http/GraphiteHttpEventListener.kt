@@ -10,8 +10,14 @@ public class GraphiteHttpEventListener(
     private val graphite: GraphiteSender,
     timeProvider: TimeProvider,
     requestMetadataProvider: RequestMetadataProvider,
+    metricsPrefix: SeriesName = SeriesName.create("network"),
     loggerFactory: LoggerFactory,
-) : MetricHttpEventListener(timeProvider, requestMetadataProvider, loggerFactory) {
+) : MetricHttpEventListener(
+    timeProvider,
+    requestMetadataProvider,
+    metricsPrefix,
+    loggerFactory,
+) {
 
     override fun send(seriesName: SeriesName, executionTimeMs: Long) {
         graphite.send(GraphiteMetric(seriesName, executionTimeMs.toString()))

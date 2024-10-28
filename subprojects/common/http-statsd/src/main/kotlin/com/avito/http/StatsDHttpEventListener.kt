@@ -10,8 +10,14 @@ public class StatsDHttpEventListener(
     private val statsDSender: StatsDSender,
     timeProvider: TimeProvider,
     requestMetadataProvider: RequestMetadataProvider,
+    metricsPrefix: SeriesName = SeriesName.create("network"),
     loggerFactory: LoggerFactory,
-) : MetricHttpEventListener(timeProvider, requestMetadataProvider, loggerFactory) {
+) : MetricHttpEventListener(
+    timeProvider,
+    requestMetadataProvider,
+    metricsPrefix,
+    loggerFactory,
+) {
 
     override fun send(seriesName: SeriesName, executionTimeMs: Long) {
         statsDSender.send(TimeMetric(seriesName, executionTimeMs))

@@ -28,7 +28,7 @@ internal class HttpClientProviderMetricsTest : BaseHttpClientProviderMetricsTest
         }
 
         assertThat(statsDSender.getSentMetrics()).comparingElementsUsing(metricNamesCorrespondence).containsExactly(
-            TimeMetric(SeriesName.create("some-service", "some-method", "timeout"), doesNotMatter)
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "timeout"), doesNotMatter)
         )
     }
 
@@ -43,7 +43,7 @@ internal class HttpClientProviderMetricsTest : BaseHttpClientProviderMetricsTest
         httpClient.blockingCall()
 
         assertThat(statsDSender.getSentMetrics()).comparingElementsUsing(metricNamesCorrespondence).containsExactly(
-            TimeMetric(SeriesName.create("some-service", "some-method", "200"), doesNotMatter)
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "200"), doesNotMatter)
         )
     }
 
@@ -58,7 +58,7 @@ internal class HttpClientProviderMetricsTest : BaseHttpClientProviderMetricsTest
         httpClient.blockingCall()
 
         assertThat(statsDSender.getSentMetrics()).comparingElementsUsing(metricNamesCorrespondence).containsExactly(
-            TimeMetric(SeriesName.create("some-service", "some-method", "502"), doesNotMatter)
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "502"), doesNotMatter)
         )
     }
 
@@ -77,9 +77,9 @@ internal class HttpClientProviderMetricsTest : BaseHttpClientProviderMetricsTest
         httpClient.blockingCall()
 
         assertThat(statsDSender.getSentMetrics()).comparingElementsUsing(metricNamesCorrespondence).containsExactly(
-            TimeMetric(SeriesName.create("some-service", "some-method", "502"), doesNotMatter),
-            TimeMetric(SeriesName.create("some-service", "some-method", "500"), doesNotMatter),
-            TimeMetric(SeriesName.create("some-service", "some-method", "200"), doesNotMatter)
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "502"), doesNotMatter),
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "500"), doesNotMatter),
+            TimeMetric(SeriesName.create("network", "some-service", "some-method", "200"), doesNotMatter)
         ).inOrder()
     }
 
