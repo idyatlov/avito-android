@@ -52,10 +52,13 @@ internal class StatsDSenderImpl(
     override fun send(metric: StatsMetric) {
         val aspect = metric.name.asAspect()
         when (metric) {
-            is TimeMetric -> client.time(aspect, metric.value)
-            is CountMetric -> client.count(aspect, metric.value)
-            is GaugeLongMetric -> client.gauge(aspect, metric.value)
-            is GaugeDoubleMetric -> client.gauge(aspect, metric.value)
+            is TimeMetric -> client.time(aspect, metric.timeInMs)
+            is CountMetric -> client.count(aspect, metric.delta)
+            is GaugeLongMetric -> client.gauge(aspect, metric.gauge)
+            is GaugeDoubleMetric -> client.gauge(aspect, metric.gauge)
+            is GaugeLongDeltaMetric -> client.recordGaugeDelta(aspect, metric.delta)
+            is GaugeDoubleDeltaMetric -> client.recordGaugeDelta(aspect, metric.delta)
+            is SetEventMetric -> client.recordSetEvent(aspect, metric.eventName)
         }
         if (config is StatsDConfig.Enabled) {
             logger.verbose("${metric.type}:${config.namespace}.$aspect:${metric.value}")

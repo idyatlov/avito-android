@@ -77,3 +77,45 @@ public data class GaugeDoubleMetric(
     override fun copy(name: SeriesName, value: Any): GaugeDoubleMetric =
         GaugeDoubleMetric(name, value as Double)
 }
+
+/**
+ * [Gauges](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges)
+ */
+public data class GaugeLongDeltaMetric(
+    override val name: SeriesName,
+    public val delta: Long
+) : StatsMetric() {
+    override val value: Long = delta
+    override val type: String = "gauge_delta"
+
+    override fun copy(name: SeriesName, value: Any): GaugeLongDeltaMetric =
+        GaugeLongDeltaMetric(name, value as Long)
+}
+
+/**
+ * [Gauges](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges)
+ */
+public data class GaugeDoubleDeltaMetric(
+    override val name: SeriesName,
+    public val delta: Double
+) : StatsMetric() {
+    override val value: Double = delta
+    override val type: String = "gauge_delta"
+
+    override fun copy(name: SeriesName, value: Any): GaugeDoubleDeltaMetric =
+        GaugeDoubleDeltaMetric(name, value as Double)
+}
+
+/**
+ * [Sets](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#sets)
+ */
+public data class SetEventMetric(
+    override val name: SeriesName,
+    public val eventName: String
+) : StatsMetric() {
+    override val value: String = eventName
+    override val type: String = "set"
+
+    override fun copy(name: SeriesName, value: Any): SetEventMetric =
+        SetEventMetric(name, value as String)
+}
