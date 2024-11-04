@@ -9,24 +9,29 @@ import com.avito.android.runner.devices.internal.kubernetes.KubernetesReservatio
 import com.avito.android.runner.devices.internal.kubernetes.ReservationDeploymentFactoryProvider
 import com.avito.android.stats.StatsDSender
 import com.avito.graphite.series.SeriesName
-import com.avito.http.StatsHttpEventListener
+import com.avito.http.StatsDHttpEventListener
+import com.avito.http.TagRequestMetadataProvider
 import com.avito.k8s.K8SOkHttpClientFactory
 import com.avito.k8s.KubernetesApiFactory
 import com.avito.k8s.KubernetesClientFactory
 import com.avito.logger.LoggerFactory
-import com.avito.report.ReportFactory
+import com.avito.report.ReportViewerTestStaticDataParser
 import com.avito.runner.config.RunnerInputParams
 import com.avito.runner.finalizer.FinalizerFactoryImpl
 import com.avito.runner.scheduler.TestRunnerFactoryProvider
-import com.avito.runner.scheduler.report.ReportFactoryImpl
+import com.avito.runner.scheduler.report.ReportModule
+import com.avito.runner.scheduler.report.ReportModuleDependencies
 import com.avito.runner.scheduler.suite.TestSuiteProvider
 import com.avito.runner.scheduler.suite.filter.FilterFactory
 import com.avito.runner.scheduler.suite.filter.FilterInfoWriter
+import com.avito.runner.scheduler.suite.filter.run_results_provider.RunResultsProviderImpl
 import com.avito.runner.service.worker.device.adb.listener.RunnerMetricsConfig
 import com.avito.time.DefaultTimeProvider
 import com.avito.time.TimeProvider
 import com.avito.utils.ProcessRunner
 import okhttp3.OkHttpClient
+import java.io.File
+import java.nio.file.Files
 
 public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFactory) {
 
@@ -39,22 +44,39 @@ public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFacto
         )
         val httpClientBuilder = OkHttpClient.Builder()
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsDSender,
                     timeProvider = timeProvider,
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory,
                 )
             }
 
         val metricsConfig = createRunnerMetricsConfig(params)
 
-        val reportFactory = createReportFactory(
-            params = params,
-            timeProvider = timeProvider,
-            builder = httpClientBuilder
+        /**
+         * i.e {projectDir}/output/test-runner/
+         */
+        val testRunnerOutputDir: File =
+            File(
+                params.outputDir,
+                "test-runner"
+            ).apply { mkdirs() }
+
+        val tempLogcatDir = Files.createTempDirectory(null).toFile()
+
+        val reportModule = ReportModule.create(
+            reportConfig = params.instrumentationConfiguration.reportConfig,
+            dependencies = ReportModuleDependencies(
+                timeProvider = timeProvider,
+                loggerFactory = loggerFactory,
+                httpClientBuilder = httpClientBuilder,
+                testRunnerOutputDir = testRunnerOutputDir,
+                tempLogcatDir = tempLogcatDir,
+                params = params,
+            )
         )
 
-        val report = reportFactory.createReport()
         val processRunner = ProcessRunner.create(null)
         val androidDebugBridgeProvider = AndroidDebugBridgeProvider(loggerFactory, processRunner)
 
@@ -65,34 +87,40 @@ public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFacto
 
         return TestSchedulerFactoryImpl(
             finalizerFactory = FinalizerFactoryImpl(
-                report = report,
+                report = reportModule.report,
                 metricsConfig = metricsConfig,
                 timeProvider = timeProvider,
                 loggerFactory = loggerFactory,
-                reportViewerConfig = params.reportViewerConfig,
+                reportConfig = params.instrumentationConfiguration.reportConfig,
                 suppressFailure = params.suppressFailure,
                 suppressFlaky = params.suppressFlaky,
                 verdictFile = params.verdictFile,
                 outputDir = params.outputDir,
             ),
-            report = report,
+            report = reportModule.report,
             testSuiteProvider = TestSuiteProvider.Impl(
-                report = report,
-                targets = params.instrumentationConfiguration.targets,
-                reportSkippedTests = params.instrumentationConfiguration.reportSkippedTests,
                 filterFactory = FilterFactory.create(
                     filterData = params.instrumentationConfiguration.filter,
                     impactAnalysisResult = params.impactAnalysisResult,
-                    report = report,
+                    runResultsProvider = RunResultsProviderImpl(reportModule.report),
                     loggerFactory = loggerFactory
+                ),
+                testStaticParser = ReportViewerTestStaticDataParser.Impl(
+                    targets = params.instrumentationConfiguration.targets.map {
+                        ReportViewerTestStaticDataParser.TargetDevice(
+                            it.deviceName,
+                            it.reservation.device.api
+                        )
+                    }
                 )
             ),
             testRunnerFactoryProvider = TestRunnerFactoryProvider(
                 params = params,
                 timeProvider = timeProvider,
-                httpClientBuilder = httpClientBuilder,
-                report = report,
                 loggerFactory = loggerFactory,
+                reportModule = reportModule,
+                testRunnerOutputDir = testRunnerOutputDir,
+                tempLogcatDir = tempLogcatDir,
                 devicesProviderFactory = DeviceProviderFactoryProvider(
                     loggerFactory = loggerFactory,
                     timeProvider = timeProvider,
@@ -143,6 +171,7 @@ public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFacto
             filter = params.instrumentationConfiguration.filter,
             testApk = params.testApk,
             outputDir = params.outputDir,
+            reportSkippedTests = params.instrumentationConfiguration.reportSkippedTests,
         )
     }
 
@@ -154,20 +183,6 @@ public class TestSchedulerFactoryProvider(private val loggerFactory: LoggerFacto
                 params.projectName,
                 params.instrumentationConfiguration.name
             )
-        )
-    }
-
-    private fun createReportFactory(
-        params: RunnerInputParams,
-        timeProvider: TimeProvider,
-        builder: OkHttpClient.Builder,
-    ): ReportFactory {
-        return ReportFactoryImpl(
-            timeProvider = timeProvider,
-            buildId = params.buildId,
-            loggerFactory = loggerFactory,
-            httpClientBuilder = builder,
-            reportViewerConfig = params.reportViewerConfig
         )
     }
 }

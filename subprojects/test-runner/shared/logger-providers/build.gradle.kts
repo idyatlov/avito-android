@@ -1,8 +1,8 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    implementation(projects.subprojects.logger.logger)
+    implementation(project(":subprojects:logger:logger"))
 }

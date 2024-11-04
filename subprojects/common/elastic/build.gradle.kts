@@ -1,19 +1,19 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
     api(libs.okhttp)
-
-    implementation(projects.subprojects.common.time)
-    implementation(projects.subprojects.common.okhttp)
+    api(project(":subprojects:common:time"))
+    api(project(":subprojects:common:okhttp"))
+    api(project(":subprojects:logger:logger"))
 
     implementation(libs.gson)
     implementation(libs.retrofit)
     implementation(libs.retrofitConverterGson)
 
-    testImplementation(projects.subprojects.common.testOkhttp)
-    testImplementation(projects.subprojects.logger.logger)
-    testImplementation(testFixtures(projects.subprojects.common.time))
+    testImplementation(project(":subprojects:common:test-okhttp"))
+    testImplementation(project(":subprojects:logger:logger"))
+    testImplementation(testFixtures(project(":subprojects:common:time")))
 }

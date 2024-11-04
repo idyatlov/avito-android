@@ -3,73 +3,113 @@ package com.avito.runner.service.worker.device.adb.instrumentation
 import com.android.annotations.VisibleForTesting
 import com.avito.cli.Notification
 import com.avito.runner.model.TestCaseRun
+import com.avito.runner.service.worker.device.adb.instrumentation.InstrumentationEntry.InstrumentationTestEntry.StatusCode
 import com.avito.runner.service.worker.model.InstrumentationTestCaseRun
 import com.avito.test.model.TestName
 import rx.Observable
+import java.io.File
 
 internal interface InstrumentationTestCaseRunParser {
 
-    fun parse(output: Observable<Notification.Output>): Observable<InstrumentationTestCaseRun>
+    fun parse(instrumentationOutput: Observable<Notification>): Observable<InstrumentationTestCaseRun>
 
     class Impl : InstrumentationTestCaseRunParser {
 
-        override fun parse(output: Observable<Notification.Output>): Observable<InstrumentationTestCaseRun> {
-            return readInstrumentationOutput(output)
+        override fun parse(
+            instrumentationOutput: Observable<Notification>
+        ): Observable<InstrumentationTestCaseRun> {
+            return readInstrumentationOutput(instrumentationOutput)
                 .asTests()
         }
 
         @VisibleForTesting
         internal fun readInstrumentationOutput(
-            output: Observable<Notification.Output>
+            instrumentationOutput: Observable<Notification>
         ): Observable<InstrumentationEntry> {
             data class Result(val buffer: String = "", val readyForProcessing: Boolean = false)
 
-            return output.map { it.line }
-                .map { it.trim() }
+            return instrumentationOutput
                 // `INSTRUMENTATION_CODE: -1` is last line printed by instrumentation, even if 0 tests were run.
                 // if invalid command last line starts with Error:
-                .takeUntil { it.startsWith("INSTRUMENTATION_CODE") || it.startsWith("Error:") }
-                .scan(Result()) { previousResult, newLine ->
-                    val buffer = when (previousResult.readyForProcessing) {
-                        true -> newLine
-                        false -> "${previousResult.buffer}${System.lineSeparator()}$newLine"
+                .takeUntil { notification ->
+                    when (notification) {
+                        is Notification.Output -> {
+                            val line = notification.line.trim()
+                            line.startsWith("INSTRUMENTATION_CODE") || line.startsWith("Error:")
+                        }
+
+                        // We use Notification.Exit only for cases when instrumentation unexpectedly exit
+                        // For example, when emulator process crashed during test
+                        is Notification.Exit -> true
                     }
+                }
+                .scan(Result()) { previousResult, notification ->
+                    when (notification) {
+                        is Notification.Output -> {
+                            val newLine = notification.line.trim()
+                            val buffer = when (previousResult.readyForProcessing) {
+                                true -> newLine
+                                false -> "${previousResult.buffer}${System.lineSeparator()}$newLine"
+                            }
 
-                    val isEntryEnd = newLine.startsWith("INSTRUMENTATION_STATUS_CODE")
-                        || newLine.startsWith("INSTRUMENTATION_CODE")
-                        || newLine.startsWith("Error:")
+                            val isEntryEnd = newLine.startsWith("INSTRUMENTATION_STATUS_CODE")
+                                || newLine.startsWith("INSTRUMENTATION_CODE")
+                                || newLine.startsWith("Error:")
 
-                    Result(buffer = buffer, readyForProcessing = isEntryEnd)
+                            Result(buffer = buffer, readyForProcessing = isEntryEnd)
+                        }
+
+                        is Notification.Exit -> throw RuntimeException(
+                            """
+                                |Unexpected instrumentation exit:
+                                |${notification.output.ifEmpty { "<empty instrumentation output>" }}
+                            """.trimMargin()
+                        )
+                    }
                 }
                 .filter { it.readyForProcessing }
                 .scan<InstrumentationEntry?>(null) { previous, new ->
                     val entry = parseInstrumentationEntry(new.buffer)
 
-                    // Check current test doesn't have test field
-                    if (entry is InstrumentationEntry.InstrumentationTestEntry &&
-                        entry.test.isEmpty()
-                    ) {
-
-                        // Check previous test entry is Start and has test name
-                        if (previous is InstrumentationEntry.InstrumentationTestEntry &&
-                            previous.statusCode == InstrumentationEntry.InstrumentationTestEntry.StatusCode.Start &&
-                            previous.test.isNotEmpty()
-                        ) {
-                            // Copy test field from previous Start entry
-                            entry.copy(
-                                id = previous.id,
-                                test = previous.test,
-                                clazz = previous.clazz
-                            )
-                        } else {
-                            throw Exception(
-                                "Something wrong with instrumentation output:" +
-                                    "Current entry doesn't have test field and previous entry is not run" +
-                                    "or doesn't have test field too."
+                    when {
+                        // Check current test doesn't have test field
+                        entry is InstrumentationEntry.InstrumentationTestEntry &&
+                            entry.test.isEmpty() ->
+                            // Check previous test entry is Start and has test name
+                            if (previous is InstrumentationEntry.InstrumentationTestEntry &&
+                                previous.statusCode == StatusCode.Start &&
+                                previous.test.isNotEmpty()
+                            ) {
+                                // Copy test field from previous Start entry
+                                entry.copy(
+                                    id = previous.id,
+                                    test = previous.test,
+                                    clazz = previous.clazz
+                                )
+                            } else {
+                                throw Exception(
+                                    buildString {
+                                        append("Something wrong with instrumentation output: ")
+                                        append("Current entry doesn't have test field and previous entry is not run ")
+                                        append("or doesn't have test field too.")
+                                    }
+                                )
+                            }
+                        // Attach additional output to actual test entry
+                        entry is InstrumentationEntry.InstrumentationMacrobenchmarkOutputEntry -> {
+                            check(previous is InstrumentationEntry.InstrumentationTestEntry) {
+                                buildString {
+                                    append("Wrong instrumentation output order: ")
+                                    append("additional output entry (code=2) must ")
+                                    append("follow after tests start entry (code = 1).")
+                                }
+                            }
+                            previous.copy(
+                                statusCode = entry.statusCode,
+                                macrobenchmarkOutputFile = entry.outputFilePath
                             )
                         }
-                    } else {
-                        entry
+                        else -> entry
                     }
                 }
                 .filterNotNull()
@@ -170,24 +210,29 @@ internal interface InstrumentationTestCaseRunParser {
                     InstrumentationTestCaseRun.CompletedTestCaseRun(
                         name = TestName(first.clazz, first.test),
                         result = when (second.statusCode) {
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.Ok ->
-                                TestCaseRun.Result.Passed
+                            StatusCode.Ok ->
+                                TestCaseRun.Result.Passed.Regular
+                            StatusCode.MacrobenchmarkOutput ->
+                                TestCaseRun.Result.Passed.WithMacrobenchmarkOutputs(
+                                    outputFiles = listOfNotNull(second.macrobenchmarkOutputFile)
+                                        .map { File(it).toPath() }
+                                )
 
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.Ignored ->
+                            StatusCode.Ignored ->
                                 TestCaseRun.Result.Ignored
 
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.Failure,
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.AssumptionFailure ->
+                            StatusCode.Failure,
+                            StatusCode.AssumptionFailure ->
                                 TestCaseRun.Result.Failed.InRun(errorMessage = second.stack)
 
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.Start ->
+                            StatusCode.Start ->
                                 throw IllegalStateException(
                                     "Unexpected status code [${second.statusCode}] " +
                                         "in second entry, ($first, $second)"
                                 )
                         },
                         timestampStartedMilliseconds = first.timestampMilliseconds,
-                        timestampCompletedMilliseconds = second.timestampMilliseconds
+                        timestampCompletedMilliseconds = second.timestampMilliseconds,
                     )
                 }
         }
@@ -214,6 +259,14 @@ internal interface InstrumentationTestCaseRunParser {
             substringBetween("INSTRUMENTATION_STATUS: $key=", "INSTRUMENTATION_STATUS", "INSTRUMENTATION_STATUS_CODE")
                 .trim()
 
+        private fun String.parseInstrumentationAdditionalOutputsValue(): List<String> =
+            substringBetween(
+                "INSTRUMENTATION_STATUS: additionalTestOutputFile_",
+                "INSTRUMENTATION_STATUS_CODE: ${StatusCode.MacrobenchmarkOutput.code}"
+            )
+                .trim()
+                .split("=")
+
         private fun String.parseInstrumentationResultValue(key: String): String =
             substringBetween("INSTRUMENTATION_RESULT: $key=", "INSTRUMENTATION_RESULT", "INSTRUMENTATION_CODE")
                 .trim()
@@ -222,6 +275,34 @@ internal interface InstrumentationTestCaseRunParser {
 
         private fun parseInstrumentationEntry(str: String): InstrumentationEntry {
             if (str.isTestEntry()) {
+                val statusCode =
+                    str.substringBetween("INSTRUMENTATION_STATUS_CODE: ", "INSTRUMENTATION_STATUS")
+                        .trim()
+                        .toInt()
+                        .let { code ->
+                            StatusCode.values()
+                                .firstOrNull { it.code == code }
+                        }
+                        .let { code ->
+                            when (code) {
+                                null -> throw IllegalStateException(
+                                    "Unknown test result status code [$code] ($str)"
+                                )
+
+                                else -> code
+                            }
+                        }
+                if (statusCode == StatusCode.MacrobenchmarkOutput) {
+                    val (name, filePath) = str.parseInstrumentationAdditionalOutputsValue()
+                    check(name.isNotBlank() && filePath.isNotBlank()) {
+                        "Received status code indicating additional output files, but file path was empty."
+                    }
+                    return InstrumentationEntry.InstrumentationMacrobenchmarkOutputEntry(
+                        outputName = name,
+                        outputFilePath = filePath,
+                    )
+                }
+
                 return InstrumentationEntry.InstrumentationTestEntry(
                     numTests = str.parseInstrumentationStatusValue("numtests").toInt(),
                     stream = str.parseInstrumentationStatusValue("stream"),
@@ -230,21 +311,7 @@ internal interface InstrumentationTestCaseRunParser {
                     test = str.parseInstrumentationStatusValue("test"),
                     clazz = str.parseInstrumentationStatusValue("class"),
                     current = str.parseInstrumentationStatusValue("current").toInt(),
-                    statusCode = str.substringBetween("INSTRUMENTATION_STATUS_CODE: ", "INSTRUMENTATION_STATUS")
-                        .trim()
-                        .toInt()
-                        .let { code ->
-                            InstrumentationEntry.InstrumentationTestEntry.StatusCode.values()
-                                .firstOrNull { it.code == code }
-                        }
-                        .let { statusCode ->
-                            when (statusCode) {
-                                null -> throw IllegalStateException(
-                                    "Unknown test result status code [$statusCode] ($str)"
-                                )
-                                else -> statusCode
-                            }
-                        },
+                    statusCode = statusCode,
                     timestampMilliseconds = System.currentTimeMillis()
                 )
             } else {
@@ -258,12 +325,12 @@ internal interface InstrumentationTestCaseRunParser {
                             InstrumentationEntry.InstrumentationResultEntry.StatusCode.values()
                                 .firstOrNull { it.code == code }
                         }
-                        .let { statusCode ->
-                            when (statusCode) {
+                        .let { code ->
+                            when (code) {
                                 null -> throw IllegalStateException(
-                                    "Unknown instrumentation result status code [$statusCode] ($str)"
+                                    "Unknown instrumentation result status code [$code] ($str)"
                                 )
-                                else -> statusCode
+                                else -> code
                             }
                         },
                     timestampMilliseconds = System.currentTimeMillis()

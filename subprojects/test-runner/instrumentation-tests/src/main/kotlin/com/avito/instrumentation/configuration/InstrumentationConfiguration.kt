@@ -1,6 +1,7 @@
 package com.avito.instrumentation.configuration
 
 import com.avito.instrumentation.configuration.target.TargetConfiguration
+import com.avito.runner.scheduler.suite.filter.ImpactAnalysisMode
 import org.gradle.api.Action
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.model.ObjectFactory
@@ -16,11 +17,17 @@ public abstract class InstrumentationConfiguration @Inject constructor(
 
     internal abstract val targetsContainer: NamedDomainObjectContainer<TargetConfiguration>
 
+    public abstract val jobSlug: Property<String>
+
     public var instrumentationParams: Map<String, String> = emptyMap()
 
     public var reportSkippedTests: Boolean = false
 
+    @Deprecated("Delete after 2024.27")
     public var runOnlyChangedTests: Boolean = false
+
+    public val impactAnalysisMode: Property<ImpactAnalysisMode> =
+        objects.property<ImpactAnalysisMode>().convention(ImpactAnalysisMode.ALL)
 
     @Deprecated("Setup instrumentation.environment")
     public var kubernetesNamespace: String = "default"
@@ -31,6 +38,8 @@ public abstract class InstrumentationConfiguration @Inject constructor(
     public var testRunnerExecutionTimeout: Duration = Duration.ofMinutes(100)
 
     public var instrumentationTaskTimeout: Duration = Duration.ofMinutes(120)
+
+    public var singleTestRunTimeout: Duration = Duration.ofMinutes(5)
 
     public var enableDeviceDebug: Boolean = false
 

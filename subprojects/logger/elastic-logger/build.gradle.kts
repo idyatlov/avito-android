@@ -1,9 +1,9 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    api(projects.subprojects.logger.logger)
-    api(projects.subprojects.common.elastic)
+    api(project(":subprojects:logger:logger"))
+    api(project(":subprojects:common:elastic"))
 }

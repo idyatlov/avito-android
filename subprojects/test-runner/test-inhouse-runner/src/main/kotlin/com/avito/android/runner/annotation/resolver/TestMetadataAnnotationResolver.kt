@@ -10,9 +10,11 @@ import com.avito.android.test.annotations.E2ETest
 import com.avito.android.test.annotations.ExternalId
 import com.avito.android.test.annotations.FeatureId
 import com.avito.android.test.annotations.Flaky
+import com.avito.android.test.annotations.GroupList
 import com.avito.android.test.annotations.IntegrationTest
 import com.avito.android.test.annotations.ManualTest
 import com.avito.android.test.annotations.Priority
+import com.avito.android.test.annotations.Regression
 import com.avito.android.test.annotations.ScreenshotTest
 import com.avito.android.test.annotations.TagId
 import com.avito.android.test.annotations.TestCaseBehavior
@@ -25,7 +27,7 @@ import com.avito.report.model.Flakiness
 import com.avito.report.model.Kind
 import com.avito.test.model.TestName
 
-class TestMetadataAnnotationResolver : TestMetadataResolver {
+public class TestMetadataAnnotationResolver : TestMetadataResolver {
 
     override val key: String = TEST_METADATA_KEY
 
@@ -41,6 +43,8 @@ class TestMetadataAnnotationResolver : TestMetadataResolver {
         var tagIds: List<Int> = emptyList()
         var featureIds: List<Int> = emptyList()
         var flakiness: Flakiness = Flakiness.Stable
+        var groupList: List<String> = emptyList()
+        var isRegression: Boolean = false
 
         val annotationTypes = arrayOf(
             FeatureId::class.java,
@@ -51,6 +55,7 @@ class TestMetadataAnnotationResolver : TestMetadataResolver {
             ExternalId::class.java,
             TagId::class.java,
             Flaky::class.java,
+            GroupList::class.java,
             UIComponentTest::class.java,
             E2ETest::class.java,
             IntegrationTest::class.java,
@@ -59,6 +64,7 @@ class TestMetadataAnnotationResolver : TestMetadataResolver {
             E2EStub::class.java,
             UnitTest::class.java,
             ScreenshotTest::class.java,
+            Regression::class.java,
         )
 
         val testAnnotations = Annotations.getAnnotationsSubset(test.testClass, test.testMethod, *annotationTypes)
@@ -80,6 +86,8 @@ class TestMetadataAnnotationResolver : TestMetadataResolver {
                         else ->
                             Flakiness.Stable
                     }
+                    is GroupList -> groupList = annotation.value.toList()
+                    is Regression -> isRegression = true
                 }
             }
 
@@ -95,10 +103,12 @@ class TestMetadataAnnotationResolver : TestMetadataResolver {
                 externalId = externalId,
                 featureIds = featureIds,
                 tagIds = tagIds,
-                flakiness = flakiness
+                flakiness = flakiness,
+                groupList = groupList,
+                isRegression = isRegression,
             )
         )
     }
 }
 
-const val TEST_METADATA_KEY = "testMetadata"
+public const val TEST_METADATA_KEY: String = "testMetadata"

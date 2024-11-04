@@ -39,7 +39,7 @@ class GitStateFromEnvironmentTest {
 
     private fun initSampleRepository(dir: File) {
         with(dir) {
-            git("init --quiet")
+            git("init --quiet --initial-branch=master")
             file("data")
             commit("initial")
             git("branch develop")
@@ -114,8 +114,8 @@ class GitStateFromEnvironmentTest {
         assertThat(state.isOnDefaultBranch).isFalse()
     }
 
-    private fun gitState(gitBranch: String, targetBranch: String?): GitState = GitStateFromEnvironment(
-        rootDir = localRepo,
+    private fun gitState(gitBranch: String, targetBranch: String?): GitState = GitStateFromEnvironment.from(
+        git = Git.create(localRepo),
         gitBranch = gitBranch,
         targetBranch = targetBranch,
         originalCommitHash = null,

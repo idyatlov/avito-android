@@ -4,67 +4,66 @@ import com.android.build.api.variant.Variant
 import com.avito.android.plugins.configuration.BuildEnvResolver
 import com.avito.android.plugins.configuration.GitResolver
 import com.avito.android.plugins.configuration.RunIdResolver
-import com.avito.git.gitState
+import com.avito.git.gitStateProvider
 import com.avito.instrumentation.configuration.ExecutionEnvironment
 import com.avito.instrumentation.configuration.InstrumentationConfiguration
 import com.avito.instrumentation.configuration.InstrumentationTestsPluginExtension
-import com.avito.time.DefaultTimeProvider
-import com.avito.time.TimeProvider
+import com.avito.instrumentation_args.AgpInstrumentationArgsProvider
+import com.avito.instrumentation_args.InstrumentationArgsResolver
+import com.avito.instrumentation_args.LocalRunInteractor
+import com.avito.instrumentation_args.SetupLocalInstrumentationArgsUseCase
+import com.avito.logger.GradleLoggerPlugin
 import com.avito.utils.gradle.envArgs
 import org.gradle.api.Project
 
 internal class ConfiguratorsFactory(
     private val project: Project,
     private val extension: InstrumentationTestsPluginExtension,
+    private val buildCacheEnabled: Boolean,
 ) {
-    private val timeProvider: TimeProvider = DefaultTimeProvider()
-
-    private val gitResolver = GitResolver(project.gitState())
+    private val gitResolver = GitResolver(project.gitStateProvider())
 
     // todo envArgs should be lazy, see [com.avito.kotlin.dsl.ProjectProperty]
     private val buildEnvResolver = BuildEnvResolver(project.provider { project.envArgs })
 
     private val runIdResolver = RunIdResolver(
-        timeProvider = timeProvider,
         gitResolver = gitResolver,
         buildEnvResolver = buildEnvResolver
     )
 
     private val reportResolver = ReportResolver(extension, runIdResolver)
 
-    private val androidVariantConfiguratorFactory = AndroidVariantConfiguratorFactory()
-
-    private val planSlugResolver = PlanSlugResolver
-
-    private val sentryResolver = SentryResolver(extension, project.providers)
+    private val androidVariantConfiguratorFactory = AndroidVariantConfiguratorFactory(extension)
 
     private val outputDirResolver = OutputDirResolver(
         extension = extension,
-        rootProjectLayout = project.rootProject.layout,
-        providers = project.providers,
-        logger = project.logger,
     )
 
     private val argsTester = LocalRunArgsChecker(outputDirResolver)
 
-    private val androidDslInteractor = AndroidDslInteractor
+    private val experimentsConfigurator = ExperimentsConfigurator(extension)
 
-    private val experimentsConfigurator = ExperimentsConfigurator(project, extension)
+    private val loggerFactory = GradleLoggerPlugin.getLoggerFactory(project)
 
-    val instrumentationArgsResolver = InstrumentationArgsResolver(
-        extension = extension,
-        sentryResolver = sentryResolver,
-        reportResolver = reportResolver,
-        planSlugResolver = planSlugResolver,
-        runIdResolver = runIdResolver,
-        buildEnvResolver = buildEnvResolver,
-        androidDslInteractor = androidDslInteractor,
+    private val agpInstrumentationArgsProvider = AgpInstrumentationArgsProvider()
+
+    private val instrumentationArgsResolver = InstrumentationArgsResolver(
+        agpArgsProvider = agpInstrumentationArgsProvider,
+        extensionArgsProvider = ExtensionInstrumentationArgsProvider(extension),
+        additionalArgsProviders = listOf(
+            ReportInstrumentationArgsProvider(
+                reportResolver = reportResolver,
+                runIdResolver = runIdResolver,
+            ),
+        ),
     )
 
-    val localRunInteractor: LocalRunInteractor = LocalRunInteractor(
-        argsTester = argsTester,
-        dslInteractor = androidDslInteractor,
-        logger = project.logger
+    val setupLocalInstrumentationArgsUseCase = SetupLocalInstrumentationArgsUseCase(
+        agpInstrumentationArgsProvider = agpInstrumentationArgsProvider,
+        localRunInteractor = LocalRunInteractor(
+            instrumentationArgsDumper = argsTester,
+            instrumentationArgsResolver = instrumentationArgsResolver,
+        ),
     )
 
     fun createTaskConfigurators(
@@ -84,18 +83,22 @@ internal class ConfiguratorsFactory(
             )
 
             val outputDirConfigurator = OutputDirConfigurator(
+                extension = extension,
                 reportResolver = reportResolver,
                 outputDirResolver = outputDirResolver,
                 configuration = configuration
             )
 
-            val outputDir = outputDirConfigurator.resolve(configuration)
-
             val instrumentationConfigurator = InstrumentationConfigurator(
                 extension = extension,
                 configuration = configuration,
                 instrumentationArgsResolver = instrumentationArgsResolver,
-                outputDir = outputDir
+                reportResolver = reportResolver,
+                loggerFactory = loggerFactory,
+            )
+
+            val buildCacheConfigurator = BuildCacheConfigurator(
+                buildCacheEnabled = buildCacheEnabled,
             )
 
             listOf(
@@ -104,9 +107,9 @@ internal class ConfiguratorsFactory(
                 instrumentationConfigurator,
                 experimentsConfigurator,
                 outputDirConfigurator,
+                buildCacheConfigurator,
                 EnvironmentConfigurator(environment),
                 GitConfigurator(gitResolver),
-                ReportViewerConfigurator(reportResolver),
                 CIArgsConfigurator(buildEnvResolver),
             )
         } else {

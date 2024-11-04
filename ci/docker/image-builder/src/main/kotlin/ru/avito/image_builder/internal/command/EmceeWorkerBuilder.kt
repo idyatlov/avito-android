@@ -20,9 +20,9 @@ internal class EmceeWorkerBuilder(
     private val buildDir: File,
     private val apis: Set<Int>,
     private val registry: String,
+    private val imageRegistryTagName: String,
     private val imageName: String,
     private val artifactoryUrl: String,
-    private val login: RegistryLogin,
     private val tagger: ImageTagger,
     private val emulatorPreparer: EmulatorPreparer,
     private val emulatorLocale: String
@@ -31,8 +31,6 @@ internal class EmceeWorkerBuilder(
     private val log: Logger = Logger.getLogger(this::class.java.simpleName)
 
     override fun build(): Image {
-        login.login()
-
         val imageId = buildImage()
         val preparedImageId = emulatorPreparer.prepareEmulators(
             imageId = imageId,
@@ -62,5 +60,5 @@ internal class EmceeWorkerBuilder(
         return id
     }
 
-    private fun tag(id: ImageId): Image = tagger.tag(id, "$registry/$imageName")
+    private fun tag(id: ImageId): Image = tagger.tag(id, "$imageRegistryTagName/$imageName")
 }

@@ -84,14 +84,12 @@ internal class TestExecutionStateImplementation(
             )
         )
 
-        if (request.application != null) {
-            layers.add(
-                State.Layer.InstalledApplication(
-                    applicationPath = request.application,
-                    applicationPackage = request.applicationPackage
-                )
+        layers.add(
+            State.Layer.InstalledApplication(
+                applicationPath = request.application,
+                applicationPackage = request.applicationPackage
             )
-        }
+        )
 
         return Intention(
             state = State(layers = layers),
@@ -99,6 +97,7 @@ internal class TestExecutionStateImplementation(
                 test = request.testCase,
                 testPackage = request.testPackage,
                 targetPackage = request.applicationPackage,
+                testArtifactsDirectoryPackage = request.testArtifactsDirectoryPackage,
                 testRunner = request.testRunner,
                 instrumentationParams = request.instrumentationParameters,
                 timeoutMinutes = request.timeoutMinutes,

@@ -1,0 +1,40 @@
+package com.avito.report.model
+
+import com.avito.android.test.annotations.TestCaseBehavior
+import com.avito.android.test.annotations.TestCasePriority
+import com.avito.test.model.DeviceName
+import com.avito.test.model.TestName
+
+/**
+ * Test data that can be parsed even without actual test run
+ */
+public interface TestStaticData {
+
+    public val name: TestName
+
+    public val device: DeviceName
+
+    public val description: String?
+
+    public val dataSetNumber: Int?
+
+    public val flakiness: Flakiness
+
+    public val testCaseId: Int?
+
+    public val externalId: String?
+
+    public val featureIds: List<Int>
+
+    public val tagIds: List<Int>
+
+    public val priority: TestCasePriority?
+
+    public val behavior: TestCaseBehavior?
+
+    public val kind: Kind
+
+    public val groupList: List<String>
+
+    public val isRegression: Boolean
+}

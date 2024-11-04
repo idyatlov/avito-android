@@ -1,11 +1,13 @@
+@file:Suppress("DEPRECATION")
+
 package com.avito.android.module_type.internal
 
 import com.avito.android.Problem
 import com.avito.android.asRuntimeException
-import com.avito.android.module_type.DependencyRestriction
-import com.avito.android.module_type.ModuleTypeRootExtension
 import com.avito.android.module_type.ModuleWithType
-import com.avito.android.module_type.Severity
+import com.avito.android.module_type.restrictions.extension.BetweenDifferentAppsRestrictionExtension
+import com.avito.android.module_type.restrictions.extension.BetweenFunctionalTypesExtension
+import com.avito.android.module_type.restrictions.extension.ToWiringRestrictionExtension
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.Directory
 import org.gradle.api.file.ProjectLayout
@@ -26,30 +28,37 @@ internal abstract class CheckModuleDependenciesTask @Inject constructor(
     val rootDir: Directory = projectLayout.projectDirectory
 
     @get:Input
-    @get:Optional
-    abstract val severity: Property<Severity>
-
-    @get:Input
     abstract val dependentProjects: SetProperty<String>
 
     @get:Input
-    abstract val restrictions: ListProperty<DependencyRestriction>
+    abstract val betweenFunctionalTypesRestrictions: ListProperty<BetweenFunctionalTypesExtension>
+
+    @get:Input
+    @get:Optional
+    abstract val betweenDifferentAppsRestriction: Property<BetweenDifferentAppsRestrictionExtension>
+
+    @get:Input
+    @get:Optional
+    abstract val toWiringRestriction: Property<ToWiringRestrictionExtension>
+
+    @get:Internal
+    abstract val solutionMessage: Property<String>
 
     @TaskAction
     fun checkDependencies() {
-        val violations = ModulesRestrictionsFinder(readModules(), restrictions.get()).violations()
+        val restrictions: List<com.avito.android.module_type.restrictions.DependencyRestriction> = buildList {
+            addAll(betweenFunctionalTypesRestrictions.getOrElse(emptyList()).map { it.getRestriction() })
+            if (betweenDifferentAppsRestriction.isPresent) {
+                add(betweenDifferentAppsRestriction.get().getRestriction())
+            }
+            if (toWiringRestriction.isPresent) {
+                add(toWiringRestriction.get().getRestriction())
+            }
+        }
+        val violations = ModulesRestrictionsFinder(readModules(), restrictions).violations()
 
         if (violations.isNotEmpty()) {
-            val error = buildProblem(violations).asRuntimeException()
-
-            @Suppress("WHEN_ENUM_CAN_BE_NULL_IN_JAVA")
-            when (severity.getOrElse(Severity.fail)) {
-                Severity.fail -> throw error
-                Severity.warning -> logger.warn("forbidden dependencies", error)
-                Severity.ignore -> {
-                    // no-op
-                }
-            }
+            throw buildProblem(violations).asRuntimeException()
         }
     }
 
@@ -65,29 +74,24 @@ internal abstract class CheckModuleDependenciesTask @Inject constructor(
 
         val errorsDescription = buildString {
             violations.forEach { violation ->
-                appendLine()
-                appendLine("${violation.module.description()} depends on ${violation.dependency.description()}")
-                appendLine("It violates a constraint: ${violation.restriction.matcher.description()}")
+                with(violation) {
+                    appendLine()
+                    appendLine("${module.description()} depends on ${dependency.description()} in $configurationType")
+                    appendLine("It violates a constraint: ${restriction.reason}")
+                }
             }
         }
-        @Suppress("MaxLineLength")
         return Problem.Builder(
             shortDescription = "Found forbidden dependencies between modules",
             context = "In modules: ${modulesWithErrors.joinToString()}"
         )
             .because(errorsDescription)
-            .addSolution("Get rid of wrong dependencies")
-            .addSolution("Add module to ${DependencyRestriction::class.java.simpleName}.${DependencyRestriction::exclusions.name}")
-            .addSolution("Disable checks in ${ModuleTypeRootExtension.name}.${ModuleTypeRootExtension::severity.name}")
+            .addSolution(solutionMessage.getOrElse("No solution help message"))
             .build()
     }
 
     private fun ModuleWithType.description(): String {
-        return if (type == null) {
-            "module $path"
-        } else {
-            "module $path (${type.description()})"
-        }
+        return "module $path (${type.description()})"
     }
 
     companion object {

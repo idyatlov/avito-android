@@ -14,7 +14,8 @@ internal class VerdictDeterminerImpl(
 
     override fun determine(
         initialTestSuite: Set<TestStaticData>,
-        testResults: Collection<AndroidTest>
+        testResults: Collection<AndroidTest>,
+        testRunnerThrowable: Throwable?,
     ): Verdict {
 
         val failedTests = getFailedTests(testResults)
@@ -25,6 +26,20 @@ internal class VerdictDeterminerImpl(
         )
 
         return when {
+            testRunnerThrowable != null -> {
+                val unsuppressedFailedTests: Collection<AndroidTest> = when {
+                    suppressFailure -> emptySet()
+                    suppressFlaky -> failedTests.filter { it.flakiness !is Flakiness.Flaky }.toSet()
+                    else -> failedTests
+                }
+
+                Verdict.Failure(
+                    testResults = testResults,
+                    notReportedTests = notReportedTests,
+                    unsuppressedFailedTests = unsuppressedFailedTests,
+                    testRunnerThrowable = testRunnerThrowable,
+                )
+            }
             suppressFailure ->
                 if (failedTests.isNotEmpty() || notReportedTests.isNotEmpty()) {
                     Verdict.Success.Suppressed(
@@ -66,7 +81,7 @@ internal class VerdictDeterminerImpl(
         }
     }
 
-    private fun getFailedTests(testVerdicts: Collection<AndroidTest>): Set<TestStaticData> {
+    private fun getFailedTests(testVerdicts: Collection<AndroidTest>): Set<AndroidTest> {
         val completedWithIncident =
             testVerdicts.filterIsInstance<AndroidTest.Completed>().filter { it.incident != null }
         val infrastructureError = testVerdicts.filterIsInstance<AndroidTest.Lost>()

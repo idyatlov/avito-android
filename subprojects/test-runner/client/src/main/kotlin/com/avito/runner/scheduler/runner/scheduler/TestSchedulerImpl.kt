@@ -7,13 +7,14 @@ import com.avito.android.check.AllChecks
 import com.avito.logger.LoggerFactory
 import com.avito.logger.create
 import com.avito.report.Report
-import com.avito.runner.config.InstrumentationFilterData
 import com.avito.runner.finalizer.Finalizer
 import com.avito.runner.scheduler.TestRunnerFactory
 import com.avito.runner.scheduler.runner.model.TestRunnerResults
 import com.avito.runner.scheduler.suite.TestSuite
 import com.avito.runner.scheduler.suite.TestSuiteProvider
+import com.avito.runner.scheduler.suite.config.InstrumentationFilterData
 import com.avito.runner.scheduler.suite.filter.FilterInfoWriter
+import com.avito.runner.scheduler.suite.filter.TestsFilter
 import com.avito.test.model.TestCase
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -30,6 +31,7 @@ internal class TestSchedulerImpl(
     private val filter: InstrumentationFilterData,
     private val testApk: File,
     private val outputDir: File,
+    private val reportSkippedTests: Boolean,
     loggerFactory: LoggerFactory,
 ) : TestScheduler {
 
@@ -57,6 +59,20 @@ internal class TestSchedulerImpl(
             tests = tests.getOrThrow()
         )
 
+        if (reportSkippedTests) {
+            val skippedTests = testSuite.skippedTests
+                // do not report skip here, to prevent final test status rewrite (green from last run - ok)
+                .filter { (_, verdict) ->
+                    verdict !is TestsFilter.Result.Excluded.BySignatures ||
+                        verdict.source != TestsFilter.Signatures.Source.PreviousRun
+                }
+                .map { (test, verdict) ->
+                    test to verdict.reason
+                }
+
+            report.addSkippedTests(skippedTests)
+        }
+
         val skippedTests = testSuite.skippedTests.map {
             "${it.first.name} on ${it.first.device} because ${it.second.reason}"
         }
@@ -71,9 +87,12 @@ internal class TestSchedulerImpl(
         writeTestSuite(outputDir, testSuite)
         val testCases = testsToRun.map { test -> TestCase(test.name, test.device) }
 
+        var testRunnerThrowable: Throwable? = null
         if (testsToRun.isNotEmpty()) {
             runBlocking {
                 testRunnerFactory.createTestRunner(testsToRun).runTests(testCases)
+            }.onFailure {
+                testRunnerThrowable = it
             }
         }
 
@@ -82,7 +101,7 @@ internal class TestSchedulerImpl(
             testResults = report.getTestResults()
         )
 
-        return finalizer.finalize(testRunnerResults)
+        return finalizer.finalize(testRunnerResults, testRunnerThrowable)
     }
 
     private fun writeParsedTests(outputDir: File, parsedTests: Result<List<TestInApk>>) {

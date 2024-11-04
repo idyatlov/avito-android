@@ -19,7 +19,7 @@ import java.io.File
 public class AndroidAppModule(
     override val name: String,
     override val packageName: String = "com.$name",
-    override val imports: List<String> = emptyList(),
+    imports: List<String> = emptyList(),
     override val plugins: PluginsSpec = PluginsSpec(),
     override val buildGradleExtra: String = "",
     override val modules: List<Module> = emptyList(),
@@ -31,14 +31,26 @@ public class AndroidAppModule(
     private val instrumentationTests: List<InstrumentationTest> = emptyList(),
     private val versionName: String = "",
     private val versionCode: Int = 1,
+    private val buildTypeName: String = "staging",
     private val mutator: File.(AndroidAppModule) -> Unit = {}
 ) : AndroidModule {
+
+    override val buildFileImports: List<String>
+
+    init {
+        val kotlinImports = if (enableKotlinAndroidPlugin || enableKapt) {
+            listOf("import org.jetbrains.kotlin.gradle.tasks.KotlinCompile")
+        } else {
+            emptyList()
+        }
+        buildFileImports = imports + kotlinImports
+    }
 
     override fun generateIn(file: File) {
         file.module(name) {
             dir("src") {
                 dir("main") {
-                    androidManifest(packageName = packageName)
+                    androidManifest()
                     if (enableKotlinAndroidPlugin || enableKapt) {
                         dir("kotlin") {
                             kotlinClass("SomeClass", packageName)
@@ -82,6 +94,8 @@ public class AndroidAppModule(
                 |${plugins()}
                 |
                 |$buildGradleExtra
+                |
+                |${kotlinExtension(useKts)}
                 |
                 |${androidExtension(useKts)}
                 |
@@ -130,6 +144,30 @@ public class AndroidAppModule(
     }"""
     }
 
+    private fun kotlinExtension(useKts: Boolean): String {
+        @Suppress("VariableNaming")
+        val setKotlinTarget_1_8 = if (enableKotlinAndroidPlugin || enableKapt) {
+            if (useKts) {
+                """
+                |tasks.withType(KotlinCompile::class.java).configureEach {
+                |   kotlinOptions {
+                |       jvmTarget = JavaVersion.VERSION_1_8.toString()
+                |    }
+                |}""".trimMargin()
+            } else {
+                """
+                |tasks.withType(KotlinCompile).configureEach {
+                |   kotlinOptions {
+                |       jvmTarget = JavaVersion.VERSION_1_8.toString()
+                |    }
+                |}""".trimMargin()
+            }
+        } else {
+            ""
+        }
+        return setKotlinTarget_1_8
+    }
+
     private fun androidExtension(useKts: Boolean): String {
         val enableKotlinAndroid = if (enableKotlinAndroidPlugin || enableKapt) {
             """
@@ -163,9 +201,12 @@ public class AndroidAppModule(
             """.trimMargin()
         }
 
+        val namespace = "namespace = \"$packageName\""
+
         return if (useKts) {
             """
             |android {
+            |   $namespace
             |   compileSdkVersion($sdkVersion)
             |   buildToolsVersion = "$buildToolsVersion"
             |   defaultConfig {
@@ -177,9 +218,9 @@ public class AndroidAppModule(
             |       val debug = getByName("debug") {
             |           applicationIdSuffix = ".debug"
             |       }
-            |       register("staging") {
+            |       register("$buildTypeName") {
             |           initWith(debug)
-            |           applicationIdSuffix = ".staging"
+            |           applicationIdSuffix = ".$buildTypeName"
             |           matchingFallbacks += listOf("debug")
             |       }
             |   }
@@ -190,6 +231,7 @@ public class AndroidAppModule(
         } else {
             """
             |android {
+            |   $namespace
             |   compileSdkVersion $sdkVersion
             |   buildToolsVersion "$buildToolsVersion"
             |   defaultConfig {
@@ -202,9 +244,9 @@ public class AndroidAppModule(
             |       debug {
             |           applicationIdSuffix = ".debug"
             |       }
-            |       staging {
+            |       $buildTypeName {
             |           initWith(debug)
-            |           applicationIdSuffix = ".staging"
+            |           applicationIdSuffix = ".$buildTypeName"
             |           matchingFallbacks = ["debug"]
             |       }
             |   }

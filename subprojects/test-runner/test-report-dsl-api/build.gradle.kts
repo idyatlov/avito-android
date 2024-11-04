@@ -1,8 +1,8 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    api(projects.subprojects.testRunner.testReportApi)
+    api(project(":subprojects:test-runner:test-report-api"))
 }

@@ -33,9 +33,13 @@ public class ModuleTypesPlugin : Plugin<Project> {
             CheckModuleDependenciesTask.name,
             CheckModuleDependenciesTask::class.java
         ) { task ->
-            task.group = "verification"
-            task.severity.set(extension.severity)
-            task.restrictions.set(extension.restrictions)
+            with(extension.dependencyRestrictionsExtension) {
+                task.group = "verification"
+                task.betweenFunctionalTypesRestrictions.set(betweenFunctionalTypesRestrictions)
+                task.betweenDifferentAppsRestriction.set(betweenDifferentAppsRestriction)
+                task.toWiringRestriction.set(toWiringRestriction)
+                task.solutionMessage.set(solutionMessage)
+            }
         }
     }
 
@@ -68,7 +72,8 @@ public class ModuleTypesPlugin : Plugin<Project> {
             ExtractModuleDescriptionTask.name,
             ExtractModuleDescriptionTask::class.java
         ) { task ->
-            task.module.set(ModuleWithType(project.path, extension.type.orNull))
+            task.modulePath.set(project.path)
+            task.moduleType.set(extension.type)
             task.outputFile.set(
                 project.layout.buildDirectory.file(ExtractModuleDescriptionTask.outputPath)
             )
@@ -76,19 +81,7 @@ public class ModuleTypesPlugin : Plugin<Project> {
                 .mapValues { it.value.map { it.path }.toSet() }
             task.directDependencies.set(directDependencies)
         }
-        if (project.mandatoryType) {
-            project.afterEvaluate {
-                extension.ensureHasType(projectPath = it.path)
-            }
-        }
     }
 }
 
 internal const val pluginId = "com.avito.android.module-types"
-
-// TODO: delete after migrating clients in MBS-12266
-private val Project.mandatoryType: Boolean
-    get() = providers
-        .gradleProperty("avito.module_type.mandatoryType")
-        .map { it.toBoolean() }
-        .getOrElse(false)

@@ -21,7 +21,9 @@ internal open class BaseHttpClientProviderMetricsTest {
         { actual, expected ->
             if (actual != null && expected != null) {
                 actual.name == expected.name
-            } else false
+            } else {
+                false
+            }
         },
         "metric names are equal"
     )
@@ -41,9 +43,10 @@ internal open class BaseHttpClientProviderMetricsTest {
     protected fun createClientBuilder(): OkHttpClient.Builder {
         return OkHttpClient.Builder()
             .eventListenerFactory {
-                StatsHttpEventListener(
+                StatsDHttpEventListener(
                     statsDSender = statsDSender,
                     timeProvider = DefaultTimeProvider(),
+                    requestMetadataProvider = TagRequestMetadataProvider(),
                     loggerFactory = loggerFactory,
                 )
             }

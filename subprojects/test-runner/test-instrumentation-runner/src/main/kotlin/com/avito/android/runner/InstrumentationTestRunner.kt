@@ -2,11 +2,12 @@ package com.avito.android.runner
 
 import android.os.Bundle
 import androidx.test.runner.AndroidJUnitRunner
+import com.avito.android.runner.environment.FakeRunDetector
 import com.avito.logger.LoggerFactory
 
-abstract class InstrumentationTestRunner : AndroidJUnitRunner(), OrchestratorDelegate {
+public abstract class InstrumentationTestRunner : AndroidJUnitRunner() {
 
-    abstract val loggerFactory: LoggerFactory
+    protected abstract val loggerFactory: LoggerFactory
 
     protected lateinit var instrumentationArguments: Bundle
 
@@ -22,17 +23,15 @@ abstract class InstrumentationTestRunner : AndroidJUnitRunner(), OrchestratorDel
      */
     final override fun onCreate(arguments: Bundle) {
         instrumentationArguments = arguments
-        val isRealRun = isRealRun(arguments)
-        if (isRealRun) {
+        if (FakeRunDetector.isRealRun(instrumentationArguments)) {
             beforeOnCreate(arguments)
             delegateRegistry = DelegatesRegistry(
                 getDelegates(arguments) + SystemDialogsManagerDelegate(loggerFactory)
             )
             delegateRegistry?.beforeOnCreate(arguments)
         }
-
         super.onCreate(arguments)
-        if (isRealRun) {
+        if (FakeRunDetector.isRealRun(instrumentationArguments)) {
             afterOnCreate(arguments)
             delegateRegistry?.afterOnCreate(arguments)
         }

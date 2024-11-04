@@ -1,41 +1,34 @@
 package com.avito.git
 
+import com.avito.git.executor.InProcessExecutor
 import com.avito.kotlin.dsl.getOptionalStringProperty
 import org.gradle.api.Project
-import java.io.File
 
-public interface GitLocalState : GitState
+internal object GitLocalState {
 
-internal class GitLocalStateImpl(
-    rootDir: File,
-    targetBranch: String?
-) : GitLocalState {
+    fun from(project: Project): GitState {
+        return from(
+            GitImpl(executor = InProcessExecutor(project.rootDir)),
+            project.getOptionalStringProperty("targetBranch")
+        )
+    }
 
-    override val defaultBranch = "develop"
-
-    override val originalBranch: Branch
-
-    override val currentBranch: Branch
-
-    override val targetBranch: Branch?
-
-    init {
+    fun from(
+        git: Git,
+        targetBranch: String?
+    ): GitState {
         @Suppress("NAME_SHADOWING")
         val targetBranch = targetBranch?.asBranchWithoutOrigin()
-
-        val git = GitImpl(
-            rootDir = rootDir
-        )
 
         val gitBranch: String = git.tryParseRev("HEAD", abbrevRef = true).getOrThrow()
         val gitCommit: String = git.tryParseRev("HEAD", abbrevRef = false).getOrThrow()
 
-        this.currentBranch = Branch(
+        val currentBranch = Branch(
             name = gitBranch,
             commit = gitCommit
         )
 
-        this.originalBranch = currentBranch
+        val originalBranch: Branch = currentBranch
 
         var target: Branch? = null
 
@@ -49,18 +42,12 @@ internal class GitLocalStateImpl(
                     )
                 }
         }
-
-        this.targetBranch = target
-    }
-
-    companion object {
-
-        fun from(project: Project): GitState {
-            val targetBranch: String? = project.getOptionalStringProperty("targetBranch")
-            return GitLocalStateImpl(
-                rootDir = project.rootDir,
-                targetBranch = targetBranch
-            )
-        }
+        return GitState(
+            originalBranch,
+            currentBranch,
+            target,
+            "develop",
+            true,
+        )
     }
 }

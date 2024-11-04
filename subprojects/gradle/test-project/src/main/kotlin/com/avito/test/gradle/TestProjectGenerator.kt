@@ -21,6 +21,7 @@ import java.util.Properties
  */
 internal val sdkVersion: Int by lazy { System.getProperty("compileSdkVersion").toInt() }
 internal val targetSdk: Int by lazy { System.getProperty("targetSdk").toInt() }
+internal val minSdkVersion: Int by lazy { System.getProperty("minSdk").toInt() }
 internal val buildToolsVersion: String by lazy { System.getProperty("buildToolsVersion") }
 internal val kotlinVersion: String by lazy { System.getProperty("kotlinVersion") }
 
@@ -56,7 +57,7 @@ public interface Generator {
  */
 public class TestProjectGenerator(
     override val name: String = "test-project",
-    override val imports: List<String> = emptyList(),
+    imports: List<String> = emptyList(),
     override val plugins: PluginsSpec = PluginsSpec(),
     override val buildGradleExtra: String = "",
     // TODO: don't share complex default values in common test fixtures. Plugin must define them implicitly!
@@ -79,9 +80,12 @@ public class TestProjectGenerator(
         "org.gradle.jvmargs" to "-Xmx1g -XX:MaxMetaspaceSize=512m",
         "android.useAndroidX" to "true",
         "avito.device.adbPullTimeoutSeconds" to "5",
+        "org.gradle.daemon" to "false",
+        "org.gradle.workers.max" to "1",
     )
 ) : Module {
 
+    override val buildFileImports: List<String> = imports
     override val dependencies: Set<GradleDependency> = emptySet()
 
     override fun generateIn(file: File) {
@@ -169,7 +173,7 @@ buildCache {
         }
 
         with(file) {
-            git("init --quiet")
+            git("init --quiet --initial-branch=master")
             commit("initial_state")
         }
     }

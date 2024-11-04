@@ -1,7 +1,9 @@
 package com.avito.runner.config
 
+import com.avito.runner.model.InstrumentationParameters
+import com.avito.runner.scheduler.suite.config.InstrumentationFilterData
+import com.avito.runner.scheduler.suite.config.RunStatus
 import com.avito.runner.scheduler.suite.filter.Filter
-import java.io.File
 import java.time.Duration
 
 public fun InstrumentationConfigurationData.Companion.createStubInstance(
@@ -11,8 +13,8 @@ public fun InstrumentationConfigurationData.Companion.createStubInstance(
     targets: List<TargetConfigurationData> = emptyList(),
     testRunnerExecutionTimeout: Duration = Duration.ofSeconds(100),
     instrumentationTaskTimeout: Duration = Duration.ofSeconds(120),
+    singleTestRunTimeout: Duration = Duration.ofMinutes(5L),
     previousRunExcluded: Set<RunStatus> = emptySet(),
-    outputFolder: File = File("")
 ): InstrumentationConfigurationData = InstrumentationConfigurationData(
     name = name,
     instrumentationParams = instrumentationParams,
@@ -20,6 +22,7 @@ public fun InstrumentationConfigurationData.Companion.createStubInstance(
     targets = targets,
     testRunnerExecutionTimeout = testRunnerExecutionTimeout,
     instrumentationTaskTimeout = instrumentationTaskTimeout,
+    singleTestRunTimeout = singleTestRunTimeout,
     filter = InstrumentationFilterData(
         name = "stub",
         fromSource = InstrumentationFilterData.FromSource(
@@ -41,5 +44,5 @@ public fun InstrumentationConfigurationData.Companion.createStubInstance(
             reportFilter = null
         )
     ),
-    outputFolder = outputFolder
+    reportConfig = RunnerReportConfig.None,
 )

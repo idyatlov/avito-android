@@ -1,5 +1,6 @@
 package com.avito.instrumentation.configuration
 
+import com.avito.instrumentation.configuration.report.ReportConfig
 import org.gradle.api.Action
 import org.gradle.api.ExtensiblePolymorphicDomainObjectContainer
 import org.gradle.api.NamedDomainObjectContainer
@@ -16,17 +17,12 @@ public abstract class InstrumentationTestsPluginExtension @Inject constructor(
     objects: ObjectFactory,
 ) {
 
-    internal val defaultOutput = layout.buildDirectory.map { it.dir("test-runner") }
+    private val defaultOutput = layout.buildDirectory.map { it.dir("test-runner") }
 
     internal abstract val configurationsContainer: NamedDomainObjectContainer<InstrumentationConfiguration>
 
     internal val environmentsContainer: ExtensiblePolymorphicDomainObjectContainer<ExecutionEnvironment> =
         objects.polymorphicDomainObjectContainer(ExecutionEnvironment::class.java)
-
-    @Deprecated("use sentryDsnUrl", replaceWith = ReplaceWith("sentryDsnUrl"))
-    public var sentryDsn: String = ""
-
-    public abstract val sentryDsnUrl: Property<String>
 
     public abstract val kubernetesHttpTries: Property<Int>
 
@@ -35,15 +31,13 @@ public abstract class InstrumentationTestsPluginExtension @Inject constructor(
     @get:Nested
     public abstract val experimental: ExperimentalExtension
 
+    @get:Nested
+    public abstract val macrobenchmark: MacrobenchmarkInstrumentationExtension
+
     // todo internal
     public abstract val filters: NamedDomainObjectContainer<InstrumentationFilter>
 
-    // todo nested
-    public val testReport: InstrumentationTestsReportExtension = InstrumentationTestsReportExtension()
-
-    // todo remove
-    public val configurations: List<InstrumentationConfiguration>
-        get() = configurationsContainer.toList()
+    public val report: Property<ReportConfig> = objects.property(ReportConfig::class.java)
 
     // todo MapProperty
     public var instrumentationParams: Map<String, String> = emptyMap()
@@ -51,10 +45,11 @@ public abstract class InstrumentationTestsPluginExtension @Inject constructor(
     // https://developer.android.com/studio/command-line/logcat#filteringOutput
     public var logcatTags: Collection<String> = emptyList()
 
-    @Deprecated("use outputDir property", replaceWith = ReplaceWith("outputDir"))
-    public var output: String = defaultOutput.get().asFile.path
-
     public val outputDir: DirectoryProperty = objects.directoryProperty().convention(defaultOutput)
+
+    init {
+        report.finalizeValueOnRead()
+    }
 
     public fun experimental(action: Action<ExperimentalExtension>) {
         action.execute(experimental)
@@ -68,11 +63,12 @@ public abstract class InstrumentationTestsPluginExtension @Inject constructor(
         action.execute(filters)
     }
 
-    public fun testReport(action: Action<InstrumentationTestsReportExtension>) {
-        action.execute(testReport)
-    }
-
     public fun environments(action: Action<PolymorphicDomainObjectContainer<ExecutionEnvironment>>) {
         action.execute(environmentsContainer)
+    }
+
+    public fun macrobenchmark(action: Action<MacrobenchmarkInstrumentationExtension>) {
+        action.execute(macrobenchmark)
+        macrobenchmark.finalizeValues()
     }
 }

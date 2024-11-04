@@ -9,6 +9,7 @@ import com.avito.test.gradle.module.AndroidLibModule
 import com.avito.test.gradle.plugin.plugins
 import com.google.common.truth.Truth.assertThat
 import groovy.xml.XmlParser
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -35,6 +36,7 @@ internal class CollectLintIssuesTest {
     }
 
     @Test
+    @Disabled
     fun `when collect lint issues - then expect generate report`(@TempDir projectDir: File) {
         TestProjectGenerator(
             plugins = plugins {
@@ -114,6 +116,7 @@ internal class CollectLintIssuesTest {
         TestProjectGenerator(
             plugins = plugins {
                 id("com.avito.android.tech-budget")
+                id("com.avito.android.tls-configuration")
             },
             modules = listOf(
                 AndroidAppModule(

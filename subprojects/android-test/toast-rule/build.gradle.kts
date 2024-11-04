@@ -3,11 +3,15 @@ plugins {
     id("convention.publish-android-library")
 }
 
+android {
+    namespace = "com.avito.android.toastrule"
+}
+
 dependencies {
     implementation(libs.androidAnnotations)
     implementation(libs.junit)
 
-    implementation(projects.subprojects.androidLib.proxyToast)
-    implementation(projects.subprojects.androidTest.uiTestingCore)
-    implementation(projects.subprojects.common.junitUtils)
+    implementation(project(":subprojects:android-lib:proxy-toast"))
+    implementation(project(":subprojects:android-test:ui-testing-core"))
+    implementation(project(":subprojects:common:junit-utils"))
 }

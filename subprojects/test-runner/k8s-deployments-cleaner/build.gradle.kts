@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     api(libs.kubernetesClient)
-    api(projects.subprojects.common.teamcityCommon)
+    api(project(":subprojects:common:teamcity-common"))
     api(libs.kotlinXCli)
 }
 
@@ -17,7 +17,6 @@ tasks.register("clearByNamespaces", JavaExec::class.java) {
         project.hasProperty("teamcityApiPassword")
         project.hasProperty("kubernetesToken")
         project.hasProperty("kubernetesUrl")
-        project.hasProperty("kubernetesCaCertData")
     }
     args(
         "clearByNamespaces",
@@ -26,7 +25,6 @@ tasks.register("clearByNamespaces", JavaExec::class.java) {
         "--teamcityApiPassword", project.getOptionalStringProperty("teamcityApiPassword", ""),
         "--kubernetesToken", project.getOptionalStringProperty("kubernetesToken", ""),
         "--kubernetesUrl", project.getOptionalStringProperty("kubernetesUrl", ""),
-        "--kubernetesCaCert", project.getOptionalStringProperty("kubernetesCaCertData", ""),
         "--namespaces", "android-emulator"
     )
 }
@@ -39,7 +37,6 @@ tasks.register("deleteByNames", JavaExec::class.java) {
         project.hasProperty("teamcityApiPassword")
         project.hasProperty("kubernetesToken")
         project.hasProperty("kubernetesUrl")
-        project.hasProperty("kubernetesCaCertData")
     }
     args(
         "deleteByNames",
@@ -53,8 +50,6 @@ tasks.register("deleteByNames", JavaExec::class.java) {
         project.getOptionalStringProperty("kubernetesToken", ""),
         "--kubernetesUrl",
         project.getOptionalStringProperty("kubernetesUrl", ""),
-        "--kubernetesCaCert",
-        project.getOptionalStringProperty("kubernetesCaCertData", ""),
         "--namespace",
         project.getOptionalStringProperty("avito.k8s-deploymetns-cleaner.byNames.namespace", "android-emulator"),
         "--deploymentNames",

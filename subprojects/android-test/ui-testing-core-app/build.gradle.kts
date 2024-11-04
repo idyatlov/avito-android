@@ -1,5 +1,7 @@
 import com.avito.instrumentation.configuration.InstrumentationConfiguration
+import com.avito.instrumentation.configuration.InstrumentationFilter.FromRunHistory
 import com.avito.instrumentation.configuration.KubernetesViaCredentials
+import com.avito.instrumentation.configuration.report.ReportConfig
 import com.avito.instrumentation.reservation.request.Device
 import com.avito.kotlin.dsl.getMandatoryStringProperty
 import com.avito.kotlin.dsl.getOptionalStringProperty
@@ -12,16 +14,15 @@ plugins {
 
 android {
 
+    namespace = "com.avito.android.ui"
+
     defaultConfig {
         versionName = "1.0"
         versionCode = 1
         testInstrumentationRunner = "com.avito.android.test.app.core.TestAppRunner"
 
         val instrumentationArgs = mapOf(
-            "planSlug" to "AndroidTestApp",
-            "jobSlug" to "FunctionalTests",
-            "fileStorageUrl" to (getOptionalStringProperty("avito.fileStorage.url") ?: "http://stub"),
-            "teamcityBuildId" to (getOptionalStringProperty("teamcityBuildId") ?: "0"),
+            "videoRecording" to "failed",
         )
 
         // These arguments are updated in IDE configuration only after sync!
@@ -30,19 +31,6 @@ android {
 
     testOptions {
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
-
-        unitTests {
-            isIncludeAndroidResources = true
-
-            all {
-                val args = mapOf(
-                    "android.junit.runner" to "com.avito.robolectric.runner.InHouseRobolectricTestRunner",
-                    "planSlug" to "AndroidTestApp",
-                    "jobSlug" to "FunctionalTests",
-                )
-                it.systemProperties.putAll(args)
-            }
-        }
     }
 
     packagingOptions {
@@ -51,21 +39,25 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidXtracing) {
+        because("androidx libs bring 1.0.0 instead of 1.1.0")
+        because("https://github.com/android/android-test/issues/1755")
+    }
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.playServicesBase)
     implementation(libs.recyclerView)
     implementation(libs.swipeRefreshLayout)
 
-    implementation(projects.subprojects.androidLib.proxyToast)
+    implementation(project(":subprojects:android-lib:proxy-toast"))
 
-    androidTestImplementation(projects.subprojects.testRunner.testInhouseRunner)
-    androidTestImplementation(projects.subprojects.testRunner.testReportAndroid)
-    androidTestImplementation(projects.subprojects.testRunner.testAnnotations)
-    androidTestImplementation(projects.subprojects.testRunner.reportViewer)
-    androidTestImplementation(projects.subprojects.androidTest.uiTestingCore)
-    androidTestImplementation(projects.subprojects.androidTest.toastRule)
-    androidTestImplementation(projects.subprojects.common.truthExtensions)
+    androidTestImplementation(project(":subprojects:test-runner:test-inhouse-runner"))
+    androidTestImplementation(project(":subprojects:test-runner:test-report-android"))
+    androidTestImplementation(project(":subprojects:test-runner:test-annotations"))
+    androidTestImplementation(project(":subprojects:test-runner:report-viewer"))
+    androidTestImplementation(project(":subprojects:android-test:ui-testing-core"))
+    androidTestImplementation(project(":subprojects:android-test:toast-rule"))
+    androidTestImplementation(project(":subprojects:common:truth-extensions"))
 
     androidTestUtil(libs.testOrchestrator)
 }
@@ -73,14 +65,21 @@ dependencies {
 val avitoRegistry = getOptionalStringProperty("avito.registry")
 
 instrumentation {
+    val reportKey = "avito.report.sender"
+    val reportConfig = when (getOptionalStringProperty(reportKey, "noop")) {
+        "noop" -> ReportConfig.NoOp
+        "runner" -> ReportConfig.ReportViewer.SendFromRunner(
+            reportApiUrl = getMandatoryStringProperty("avito.report.url"),
+            reportViewerUrl = getMandatoryStringProperty("avito.report.viewerUrl"),
+            fileStorageUrl = getMandatoryStringProperty("avito.fileStorage.url"),
+            planSlug = "UiTestingCoreApp",
+            jobSlug = "FunctionalTests"
+        )
 
-    testReport {
-        reportViewer {
-            reportApiUrl = getOptionalStringProperty("avito.report.url") ?: "http://stub"
-            reportViewerUrl = getOptionalStringProperty("avito.report.viewerUrl") ?: "http://stub"
-            fileStorageUrl = getOptionalStringProperty("avito.fileStorage.url") ?: "http://stub"
-        }
+        else -> throw IllegalArgumentException("Invalid value for $reportKey property")
     }
+
+    report.set(reportConfig)
 
     logcatTags = setOf(
         "UITestRunner:*",
@@ -96,14 +95,15 @@ instrumentation {
         "*:E"
     )
 
-    instrumentationParams = mapOf(
-        "videoRecording" to "failed",
-        "jobSlug" to "FunctionalTests"
-    )
-
     filters {
         register("ci") {
             fromSource.excludeFlaky = true
+            fromRunHistory.excludePreviousStatuses(
+                setOf(
+                    FromRunHistory.RunStatus.Success,
+                    FromRunHistory.RunStatus.Manual
+                )
+            )
         }
 
         register("local") {
@@ -114,7 +114,6 @@ instrumentation {
     environments {
         register<KubernetesViaCredentials>("kubernetes") {
             token.set(getMandatoryStringProperty("kubernetesToken"))
-            caCertData.set(getMandatoryStringProperty("kubernetesCaCertData"))
             url.set(getMandatoryStringProperty("kubernetesUrl"))
             namespace.set(getMandatoryStringProperty("kubernetesNamespace"))
         }
@@ -138,29 +137,19 @@ instrumentation {
         memoryLimit = defaultMemoryLimit
     )
 
-    val emulator33 = Device.CloudEmulator(
-        name = "api33",
-        api = 33,
-        model = "sdk_gphone_x86_64",
-        image = emulatorImage(33, "409d2b4839b7"),
-        cpuCoresRequest = defaultCpuRequest,
-        cpuCoresLimit = defaultCpuLimit,
-        memoryLimit = "4.5Gi"
-    )
-
     configurations {
         register("local") {
             filter = "local"
             targets {
-                register("api33") {
-                    deviceName = "API33"
+                register("api34") {
+                    deviceName = "API34"
                     scheduling {
                         quota {
                             retryCount = 1
                             minimumSuccessCount = 1
                         }
                         testsCountBasedReservation {
-                            device = Device.LocalEmulator.device(33, "sdk_gphone_x86_64")
+                            device = Device.LocalEmulator.device(34, "sdk_gphone64_x86_64")
                             maximum = 1
                             testsPerEmulator = 1
                         }
@@ -170,26 +159,16 @@ instrumentation {
         }
 
         register(
-            "uiApi24",
+            "PRCheck",
             instrumentationConfiguration(
-                targetDevice = emulator24,
-                targetDeviceName = "API24"
-            )
-        )
-
-        register(
-            "uiApi33",
-            instrumentationConfiguration(
-                targetDevice = emulator33,
-                targetDeviceName = "API33"
+                targetDevices = setOf(emulator24),
             )
         )
     }
 }
 
 fun instrumentationConfiguration(
-    targetDevice: Device,
-    targetDeviceName: String,
+    targetDevices: Set<Device>,
 ): Action<InstrumentationConfiguration> {
     return Action {
         testRunnerExecutionTimeout = Duration.ofMinutes(10)
@@ -197,21 +176,23 @@ fun instrumentationConfiguration(
         reportSkippedTests = true
         filter = "ci"
 
-        targets {
-            register(targetDevice.name) {
-                scheduling {
-                    deviceName = targetDeviceName
+        targetDevices.forEach { targetDevice ->
+            targets {
+                register(targetDevice.name) {
+                    scheduling {
+                        deviceName = targetDevice.name
 
-                    quota {
-                        retryCount = 1
-                        minimumSuccessCount = 1
-                    }
+                        quota {
+                            retryCount = 1
+                            minimumSuccessCount = 1
+                        }
 
-                    testsCountBasedReservation {
-                        device = targetDevice
-                        minimum = 1
-                        maximum = 5
-                        testsPerEmulator = 12
+                        testsCountBasedReservation {
+                            device = targetDevice
+                            minimum = 1
+                            maximum = 5
+                            testsPerEmulator = 12
+                        }
                     }
                 }
             }
@@ -231,7 +212,6 @@ val isLocalCheck = project.providers.gradleProperty("localCheck").getOrElse("fal
 
 if (!isLocalCheck) {
     tasks.check {
-        dependsOn(tasks.named("instrumentationUiApi24Kubernetes"))
-        dependsOn(tasks.named("instrumentationUiApi33Kubernetes"))
+        dependsOn(tasks.named("instrumentationPRCheckKubernetes"))
     }
 }

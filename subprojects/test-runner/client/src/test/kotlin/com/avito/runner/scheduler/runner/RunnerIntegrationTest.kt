@@ -686,7 +686,7 @@ internal class RunnerIntegrationTest {
         return deviceTestCaseRun(
             device = device,
             test = this,
-            result = TestCaseRun.Result.Passed
+            result = TestCaseRun.Result.Passed.Regular
         )
     }
 
@@ -737,7 +737,7 @@ internal class RunnerIntegrationTest {
 
     private fun testPassed(): StubActionResult.Success<TestCaseRun.Result> {
         return StubActionResult.Success(
-            TestCaseRun.Result.Passed
+            TestCaseRun.Result.Passed.Regular
         )
     }
 
@@ -774,7 +774,8 @@ internal class RunnerIntegrationTest {
             testApplication = File("stub"),
             executionParameters = ExecutionParameters.Companion.createStubInstance(),
             targets = targets.associateBy { it.deviceName },
-            deviceDebug = deviceDebug
+            deviceDebug = deviceDebug,
+            testRunTimeout = Duration.ofMinutes(5L),
         )
         val scheduler = TestExecutionScheduler(
             dispatcher = dispatcher,

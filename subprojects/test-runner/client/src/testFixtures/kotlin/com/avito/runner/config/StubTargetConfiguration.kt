@@ -1,6 +1,7 @@
 package com.avito.runner.config
 
 import com.avito.instrumentation.reservation.request.Device
+import com.avito.runner.model.InstrumentationParameters
 import com.avito.test.model.DeviceName
 
 public fun TargetConfigurationData.Companion.createStubInstance(
@@ -22,5 +23,5 @@ public fun TargetConfigurationData.Companion.createStubInstance(
     name = "${deviceName}Configuration",
     reservation = reservation,
     deviceName = deviceName,
-    instrumentationParams = instrumentationParams
+    instrumentationParams = instrumentationParams,
 )

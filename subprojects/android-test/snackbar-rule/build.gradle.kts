@@ -3,8 +3,12 @@ plugins {
     id("convention.publish-android-library")
 }
 
+android {
+    namespace = "com.avito.android.snackbar.rule"
+}
+
 dependencies {
-    api(projects.subprojects.common.junitUtils)
-    api(projects.subprojects.androidLib.snackbarProxy)
-    implementation(projects.subprojects.androidTest.uiTestingCore)
+    api(project(":subprojects:common:junit-utils"))
+    api(project(":subprojects:android-lib:snackbar-proxy"))
+    implementation(project(":subprojects:android-test:ui-testing-core"))
 }

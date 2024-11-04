@@ -1,8 +1,8 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    implementation(projects.subprojects.testRunner.reportViewer)
+    implementation(project(":subprojects:test-runner:report-viewer-model"))
 }

@@ -10,6 +10,7 @@ import com.avito.instrumentation.configuration.KubernetesViaContext
 import com.avito.instrumentation.configuration.KubernetesViaCredentials
 import com.avito.instrumentation.configuration.LocalAdb
 import com.avito.instrumentation.internal.ConfiguratorsFactory
+import com.avito.instrumentation.internal.ExtensionCorrectnessChecker
 import com.avito.instrumentation.internal.InstrumentationTaskConfigurator
 import com.avito.instrumentation.internal.TaskValidatorsFactory
 import com.avito.kotlin.dsl.getBooleanProperty
@@ -27,25 +28,24 @@ public class InstrumentationTestsPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.createInstrumentationPluginExtension()
 
-        val factory = ConfiguratorsFactory(project, extension)
+        // cache enabled only on pr's
+        val buildCacheEnabled = project.getBooleanProperty(
+            name = "avito.instrumentation.buildCacheEnabled",
+            default = false,
+        )
+
+        val factory = ConfiguratorsFactory(project, extension, buildCacheEnabled)
 
         val filtersFactory = TaskValidatorsFactory()
+
+        val extensionCorrectnessChecker = ExtensionCorrectnessChecker(extension)
 
         project.plugins.withType<BasePlugin> {
 
             val androidComponents = project.extensions.getByType(AndroidComponentsExtension::class.java)
 
             androidComponents.finalizeDsl { androidExtension ->
-
-                val instrumentationArgs = factory.instrumentationArgsResolver.resolvePluginLevelArgs(
-                    project = project,
-                    androidExtension = androidExtension
-                )
-
-                factory.localRunInteractor.setupLocalRunInstrumentationArgs(
-                    androidExtension = androidExtension,
-                    args = instrumentationArgs
-                )
+                factory.setupLocalInstrumentationArgsUseCase.setupLocalRunParams(androidExtension)
             }
 
             extension.configurationsContainer.all { configuration ->
@@ -55,6 +55,8 @@ public class InstrumentationTestsPlugin : Plugin<Project> {
                     // todo how to write "only testBuildType" selector?
 
                     androidComponents.onVariants { variant ->
+
+                        extensionCorrectnessChecker.check(variant)
 
                         val configurators = factory.createTaskConfigurators(
                             configuration = configuration,

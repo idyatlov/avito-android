@@ -1,0 +1,10 @@
+plugins {
+    id("convention.kotlin-jvm")
+    id("convention.publish-kotlin-library")
+}
+
+dependencies {
+    api(project(":subprojects:test-runner:instrumentation-tests-dex-loader"))
+    api(project(":subprojects:test-runner:report-viewer-model"))
+    implementation(project(":subprojects:test-runner:test-annotations"))
+}

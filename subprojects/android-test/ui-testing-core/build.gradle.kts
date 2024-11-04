@@ -3,6 +3,10 @@ plugins {
     id("convention.publish-android-library")
 }
 
+android {
+    namespace = "com.avito.android.test.ui"
+}
+
 dependencies {
     api(libs.androidXTestCore)
     api(libs.espressoCore)
@@ -16,10 +20,10 @@ dependencies {
     api(libs.material)
 
     // todo implementation, waitForAssertion used in app
-    api(projects.subprojects.common.waiter)
+    api(project(":subprojects:common:waiter"))
 
     implementation(libs.bundles.hamcrest)
     implementation(libs.junit)
     implementation(libs.freeReflection)
-    implementation(projects.subprojects.androidTest.instrumentation)
+    implementation(project(":subprojects:android-test:instrumentation"))
 }

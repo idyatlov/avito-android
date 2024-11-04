@@ -1,10 +1,10 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    api(projects.subprojects.common.result)
-    api(projects.subprojects.common.httpStatsd)
+    api(project(":subprojects:common:result"))
+    api(project(":subprojects:common:http-statsd"))
     implementation(libs.retrofit)
 }

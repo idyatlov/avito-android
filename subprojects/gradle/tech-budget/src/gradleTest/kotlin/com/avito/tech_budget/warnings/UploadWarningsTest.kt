@@ -126,6 +126,7 @@ internal class UploadWarningsTest {
         plugins = plugins {
             id("com.avito.android.gradle-logger")
             id("com.avito.android.tech-budget")
+            id("com.avito.android.tls-configuration")
             id("com.avito.android.code-ownership")
         },
         useKts = true,
@@ -169,7 +170,7 @@ internal class UploadWarningsTest {
                 }
                 subprojects.forEach { subproject -> 
                     subproject.tasks.register("$taskName", ReportTask::class) {
-                        warnings.set(subproject.file("build/reports/detekt/report.csv"))
+                        warningsReports.from(subproject.file("build/reports/detekt/report.csv"))
                     }
                 }
                 techBudget {
@@ -202,7 +203,9 @@ internal class UploadWarningsTest {
                             uploadWarningsBatchSize.set(1)
                             uploadWarningsParallelRequestsCount.set(1)
                         """.trimIndent()
-            } else ""
+            } else {
+                ""
+            }
         }
                     }
             """.trimIndent()

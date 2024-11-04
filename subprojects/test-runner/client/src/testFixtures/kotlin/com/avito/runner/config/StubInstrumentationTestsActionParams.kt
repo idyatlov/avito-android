@@ -8,10 +8,8 @@ import com.avito.runner.scheduler.suite.filter.createStubInstance
 import com.avito.utils.gradle.KubernetesCredentials
 import java.io.File
 import java.time.Duration
-import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.createTempDirectory
 
-@OptIn(ExperimentalPathApi::class)
 public fun RunnerInputParams.Companion.createStubInstance(
     mainApk: File = File(""),
     testApk: File = File(""),
@@ -22,7 +20,6 @@ public fun RunnerInputParams.Companion.createStubInstance(
     buildType: String = "teamcity",
     kubernetesCredentials: KubernetesCredentials = KubernetesCredentials.Service(
         token = "empty",
-        caCertData = "empty",
         url = "empty",
         namespace = "kubernetesNamespace",
     ),
@@ -33,10 +30,9 @@ public fun RunnerInputParams.Companion.createStubInstance(
     impactAnalysisResult: ImpactAnalysisResult = ImpactAnalysisResult.createStubInstance(),
     deviceDebug: Boolean = false,
     outputDir: File = createTempDirectory("runnerOutput").toFile(),
+    macrobenchmarkOutputDir: File = createTempDirectory("runnerMacrobenchmarkOutput").toFile(),
     verdictFile: File = File(outputDir, "verdict.json"),
-    fileStorageUrl: String = "https://files",
     statsDConfig: StatsDConfig = StatsDConfig.Disabled,
-    uploadTestArtifacts: Boolean = false,
     saveTestArtifactsToOutputs: Boolean = false,
     useLegacyExtensionsV1Beta: Boolean = true,
 ): RunnerInputParams = RunnerInputParams(
@@ -53,12 +49,10 @@ public fun RunnerInputParams.Companion.createStubInstance(
     suppressFlaky = suppressFlaky,
     impactAnalysisResult = impactAnalysisResult,
     outputDir = outputDir,
+    macrobenchmarkOutputDir = macrobenchmarkOutputDir,
     verdictFile = verdictFile,
-    fileStorageUrl = fileStorageUrl,
     statsDConfig = statsDConfig,
     proguardMappings = emptyList(),
-    uploadTestArtifacts = uploadTestArtifacts,
-    reportViewerConfig = null,
     saveTestArtifactsToOutputs = saveTestArtifactsToOutputs,
     useLegacyExtensionsV1Beta = useLegacyExtensionsV1Beta,
     deviceDebug = deviceDebug,

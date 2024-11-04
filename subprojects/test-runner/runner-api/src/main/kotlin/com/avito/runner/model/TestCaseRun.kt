@@ -1,6 +1,7 @@
 package com.avito.runner.model
 
 import com.avito.test.model.TestCase
+import java.nio.file.Path
 
 public data class TestCaseRun(
     val test: TestCase,
@@ -12,7 +13,14 @@ public data class TestCaseRun(
         get() = timestampCompletedMilliseconds - timestampStartedMilliseconds
 
     public sealed class Result {
-        public object Passed : Result()
+        public sealed class Passed : Result() {
+            public object Regular : Passed()
+
+            public data class WithMacrobenchmarkOutputs(
+                public val outputFiles: List<Path> = emptyList()
+            ) : Passed()
+        }
+
         public object Ignored : Result()
         public sealed class Failed : Result() {
             public data class InRun(val errorMessage: String) : Failed()

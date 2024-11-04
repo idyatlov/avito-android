@@ -21,6 +21,17 @@ if (!isInternalBuild) {
     )
 }
 
+val parentBuild = gradle.parent
+
+/**
+ * --dry-run on root build executes tasks in a composite build
+ * Workaround to https://github.com/gradle/gradle/issues/2517
+ */
+if (parentBuild != null && parentBuild.startParameter.isDryRun) {
+    gradle.startParameter.isDryRun = true
+}
+
+@Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
 
     @Suppress("UnstableApiUsage")
@@ -71,9 +82,8 @@ dependencyResolutionManagement {
 // The problem is - it doesn't work for included builds inside `pluginManagement`.
 // They applied before the cache configuration in the root project itself.
 // https://docs.gradle.org/current/userguide/build_cache.html#sec:build_cache_composite
-apply(from = "cache-plugin/src/main/kotlin/convention-cache.settings.gradle.kts")
+apply(from = "cache-plugin/convention-cache.settings.gradle.kts")
 
-include("cache-plugin")
 include("dependency-plugin")
 include("scan-plugin")
 include("extensions")

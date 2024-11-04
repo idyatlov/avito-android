@@ -18,7 +18,9 @@ public data class TestMetadata(
     val externalId: String?,
     val featureIds: List<Int>,
     val tagIds: List<Int>,
-    val flakiness: Flakiness
+    val flakiness: Flakiness,
+    val groupList: List<String>,
+    val isRegression: Boolean,
 ) : Serializable {
     internal companion object
 }

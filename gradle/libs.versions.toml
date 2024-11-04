@@ -1,21 +1,21 @@
 [versions]
 java = "17"
-kotlin = "1.7.10"
-kotlinLanguageVersion = "1.7"
-kspVersion = "1.7.10-1.0.6"
-agp = "7.4.1"
+kotlin = "1.9.22"
+kotlinLanguageVersion = "1.9"
+kspVersion = "1.9.22-1.0.17"
+agp = "8.2.2"
 # formula: 23 + agp version
 # check versions https://mvnrepository.com/artifact/com.android.tools.external.com-intellij
-androidTools = "30.4.1"
-okhttp = "4.9.0"
+androidTools = "31.2.2"
+okhttp = "4.10.0"
 retrofit = "2.9.0"
-androidX = "1.3.0"
+androidX = "1.6.0"
 espresso = "3.5.1"
 coroutines = "1.3.8"
-detekt = "1.18.0"
-buildTools = "33.0.2"
-compileSdk = "33"
-targetSdk = "33"
+detekt = "1.23.5"
+buildTools = "34.0.0"
+compileSdk = "35"
+targetSdk = "34"
 minSdk = "24"
 junit5 = "5.8.0"
 junit5Platform = "1.8.0"
@@ -23,9 +23,10 @@ xmlUnit = "2.9.0"
 hamcrest = "2.2"
 moshi = "1.13.0"
 moshiX = "0.17.2"
-ktor = "2.1.2"
+ktor = "2.0.3"
 jackson = "2.13.0"
 proguard = "6.2.2"
+compose = "1.6.7"
 
 [libraries]
 versionsGradle = "com.github.ben-manes:gradle-versions-plugin:0.39.0"
@@ -33,17 +34,16 @@ kotlinGradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.r
 kspGradle = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "kspVersion" }
 androidGradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 detektGradle = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
-dependencyGuard = "com.dropbox.dependency-guard:dependency-guard:0.4.3"
+dependencyGuard = "com.dropbox.dependency-guard:dependency-guard:0.5.0"
 
 detektFormatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
 
 kotlinStdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
-kotlinStdlibJdk7 = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk7", version.ref = "kotlin" }
 kotlinReflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 kotlinCompilerEmbeddable = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable", version.ref = "kotlin" }
 kotlinHtml = "org.jetbrains.kotlinx:kotlinx-html-jvm:0.7.3"
 coroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
-kotlinPoet = "com.squareup:kotlinpoet:1.11.0"
+kotlinPoet = "com.squareup:kotlinpoet:1.16.0"
 kotlinTestJUnit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlinXCli = "org.jetbrains.kotlinx:kotlinx-cli:0.3.3"
 
@@ -59,6 +59,7 @@ commonsConfiguration = "commons-configuration:commons-configuration:1.10"
 
 okio = "com.squareup.okio:okio:2.7.0"
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+okhttpTls = { module = "com.squareup.okhttp3:okhttp-tls", version.ref = "okhttp" }
 okhttpLogging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
 okhttpMockWebServer = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 
@@ -69,6 +70,7 @@ retrofitConverterScalars = { module = "com.squareup.retrofit2:converter-scalars"
 gson = "com.google.code.gson:gson:2.8.9"
 kotson = "com.github.salomonbrys.kotson:kotson:2.5.0"
 jacksonDataformat-toml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-toml", version.ref = "jackson" }
+jacksonDataformat-csv = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-csv", version.ref = "jackson" }
 jacksonCore = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 
 layoutLibApi = { module = "com.android.tools.layoutlib:layoutlib-api", version.ref = "androidTools" }
@@ -88,10 +90,11 @@ kubernetesDsl = "com.github.fkorotkov:k8s-kotlin-dsl:3.1.1"
 ddmlib = "com.android.tools.ddms:ddmlib:26.2.0"
 uiAutomator = "androidx.test.uiautomator:uiautomator:2.2.0"
 testOrchestrator = "androidx.test:orchestrator:1.4.2"
-androidXTestCore = "androidx.test:core:1.5.0"
+androidXTestCore = "androidx.test:core:1.6.0"
 androidXTestRunner = "androidx.test:runner:1.5.2"
 androidXTestRules = "androidx.test:rules:1.5.0"
 androidXTestExtJunit = "androidx.test.ext:junit:1.1.5"
+androidXtracing = "androidx.tracing:tracing:1.1.0"
 espressoCore = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 espressoWeb = { module = "androidx.test.espresso:espresso-web", version.ref = "espresso" }
 espressoIntents = { module = "androidx.test.espresso:espresso-intents", version.ref = "espresso" }
@@ -108,12 +111,12 @@ hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 hamcrestLibrary = { module = "org.hamcrest:hamcrest-library", version.ref = "hamcrest" }
 jsonPathAssert = "com.jayway.jsonpath:json-path-assert:2.4.0"
 jsonAssert = "org.skyscreamer:jsonassert:1.5.0"
-kotlinCompileTesting = "com.github.tschuchortdev:kotlin-compile-testing:1.4.8"
+kotlinCompileTesting = "com.github.tschuchortdev:kotlin-compile-testing:1.5.0"
 mockitoKotlin = "com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0"
 mockitoJUnitJupiter = "org.mockito:mockito-junit-jupiter:3.3.3"
 freeReflection = "com.github.tiann:FreeReflection:3.2.0"
 antPattern = "io.github.azagniotov:ant-style-path-matcher:1.0.0"
-okhttpMock = "com.github.gmazzo:okhttp-mock:1.4.0"
+okhttpMock = "com.github.gmazzo:okhttp-mock:1.5.0"
 coroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junitJupiterApi = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }
 junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
@@ -148,12 +151,18 @@ moshiSealedCodegen = { module = "dev.zacsweers.moshix:moshi-sealed-codegen", ver
 ktorCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktorNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }
 ktorContentNegotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktorClientContentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktorSerializationGson = { module = "io.ktor:ktor-serialization-gson", version.ref = "ktor" }
+ktorKotlinSerialization = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktorClient = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktorOkhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 
 # https://mvnrepository.com/artifact/com.autonomousapps.dependency-analysis/com.autonomousapps.dependency-analysis.gradle.plugin
-dependencyAnalysis = "com.autonomousapps.dependency-analysis:com.autonomousapps.dependency-analysis.gradle.plugin:1.18.0"
+dependencyAnalysis = "com.autonomousapps.dependency-analysis:com.autonomousapps.dependency-analysis.gradle.plugin:1.28.0"
+
+# https://developer.android.com/jetpack/androidx/releases/compose-ui
+compose-uiTestJunit = { module = "androidx.compose.ui:ui-test-junit4", version.ref = "compose" }
 
 [bundles]
 hamcrest = ["hamcrest", "hamcrestLibrary"]
-ktor = ["ktorCore", "ktorNetty", "ktorContentNegotiation", "ktorSerializationGson"]
+ktor = ["ktorCore", "ktorNetty", "ktorContentNegotiation", "ktorSerializationGson", "ktorOkhttp", "ktorKotlinSerialization", "ktorClientContentNegotiation"]

@@ -1,5 +1,6 @@
 package com.avito.runner.config
 
+import com.avito.runner.model.InstrumentationParameters
 import com.avito.test.model.DeviceName
 import java.io.Serializable
 
@@ -7,7 +8,7 @@ public data class TargetConfigurationData(
     val name: String,
     val reservation: Reservation,
     val deviceName: DeviceName,
-    val instrumentationParams: InstrumentationParameters
+    val instrumentationParams: InstrumentationParameters,
 ) : Serializable {
 
     override fun toString(): String = "$name with device name: $deviceName"

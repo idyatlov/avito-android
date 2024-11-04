@@ -1,6 +1,6 @@
 package com.avito.runner.service.device.adb.instrumentation
 
-import com.avito.cli.Notification.Output
+import com.avito.cli.Notification
 import com.avito.runner.model.TestCaseRun
 import com.avito.runner.service.worker.device.adb.instrumentation.InstrumentationEntry
 import com.avito.runner.service.worker.device.adb.instrumentation.InstrumentationEntry.InstrumentationTestEntry
@@ -295,24 +295,56 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
                 ),
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test2"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test3"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test4"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 )
             )
         )
+    }
+
+    @Test
+    fun `read instrumentation output on unexpected exit before start - emits failed on instrumentation parsing`() {
+        val outputWithFailedTest = ResourcesReader.readFile("instrumentation-output-unexpected-exit-before-start.txt")
+
+        val subscriber = instrumentationParser
+            .parse(
+                getInstrumentationOutput(outputWithFailedTest)
+            )
+            .subscribeAndWait()
+
+        val tests: List<InstrumentationTestCaseRun> = subscriber.onNextEvents
+
+        assertThat(tests[0])
+            .isInstanceOf<InstrumentationTestCaseRun.FailedOnInstrumentationParsing>()
+    }
+
+    @Test
+    fun `read instrumentation output on unexpected exit after start - emits failed on instrumentation parsing`() {
+        val outputWithFailedTest = ResourcesReader.readFile("instrumentation-output-unexpected-exit-after-start.txt")
+
+        val subscriber = instrumentationParser
+            .parse(
+                getInstrumentationOutput(outputWithFailedTest)
+            )
+            .subscribeAndWait()
+
+        val tests: List<InstrumentationTestCaseRun> = subscriber.onNextEvents
+
+        assertThat(tests[0])
+            .isInstanceOf<InstrumentationTestCaseRun.FailedOnInstrumentationParsing>()
     }
 
     @Test
@@ -529,19 +561,19 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
             listOf<InstrumentationTestCaseRun>(
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test1"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test2"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test3"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 )
@@ -681,7 +713,7 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
             listOf<InstrumentationTestCaseRun>(
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test1"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
@@ -858,7 +890,7 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
             listOf(
                 InstrumentationTestCaseRun.CompletedTestCaseRun(
                     name = TestName("com.example.test.TestClass", "test1"),
-                    result = TestCaseRun.Result.Passed,
+                    result = TestCaseRun.Result.Passed.Regular,
                     timestampStartedMilliseconds = 0,
                     timestampCompletedMilliseconds = 0
                 ),
@@ -975,6 +1007,37 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
             .isEmpty()
     }
 
+    @Test
+    fun `read instrumentation output - completes stream - with additional outputs`() {
+        val outputWithFailedTest = ResourcesReader.readFile("instrumentation-output-additional-outputs.txt")
+        val outputFilePathFromSampleOutput = "/storage/emulated/0/Android/media/com.avito.android.macrobenchmark/" +
+            "BaselineProfileGenerator_startup-baseline-prof.txt"
+
+        val subscriber = instrumentationParser
+            .parse(
+                getInstrumentationOutput(outputWithFailedTest)
+            )
+            .subscribeAndWait()
+
+        val entries = subscriber.onNextEvents.eraseDuration()
+        val run = InstrumentationTestCaseRun.CompletedTestCaseRun(
+            name = TestName(
+                "com.avito.android.macrobenchmark.baselineprofile.BaselineProfileGenerator",
+                "startup"
+            ),
+            result = TestCaseRun.Result.Passed.WithMacrobenchmarkOutputs(
+                outputFiles = listOf(outputFilePathFromSampleOutput).map { File(it).toPath() }
+            ),
+            timestampStartedMilliseconds = 0,
+            timestampCompletedMilliseconds = 0
+        )
+        assertThat(entries).containsExactlyElementsIn(
+            listOf<InstrumentationTestCaseRun>(
+                run, run, run, run, run, run
+            )
+        )
+    }
+
     private fun <T> Observable<T>.subscribeAndWait() = TestSubscriber<T>()
         .apply {
             subscribeOn(Schedulers.immediate())
@@ -989,6 +1052,7 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
         when (it) {
             is InstrumentationTestEntry -> it.copy(timestampMilliseconds = 0)
             is InstrumentationEntry.InstrumentationResultEntry -> it.copy(timestampMilliseconds = 0)
+            is InstrumentationEntry.InstrumentationMacrobenchmarkOutputEntry -> it
         }
     }
 
@@ -1002,7 +1066,7 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
         }
     }
 
-    private fun getInstrumentationOutput(output: File): Observable<Output> {
+    private fun getInstrumentationOutput(output: File): Observable<Notification> {
         return Observable.unsafeCreate {
             val reader = BufferedReader(
                 FileReader(output)
@@ -1011,10 +1075,14 @@ at android.app.Instrumentation.InstrumentationThread.run(Instrumentation.java:19
             var line: String? = reader.readLine()
             while (line != null) {
                 it.onNext(
-                    Output(line = line)
+                    Notification.Output(line = line)
                 )
                 line = reader.readLine()
             }
+
+            it.onNext(
+                Notification.Exit(output = output.readText())
+            )
 
             it.onCompleted()
         }

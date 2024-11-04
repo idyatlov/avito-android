@@ -9,7 +9,7 @@ import androidx.test.espresso.PerformException
 import junit.framework.AssertionFailedError
 import org.hamcrest.Matcher
 
-class ReportFriendlyFailureHandler : FailureHandler {
+public class ReportFriendlyFailureHandler : FailureHandler {
 
     private val normalizers = listOf(
         RegexNormalizer(
@@ -68,7 +68,7 @@ class ReportFriendlyFailureHandler : FailureHandler {
                 exception.initCause(error)
                 exception
             }
-            error is PerformException -> {
+            error is PerformException ->
                 // RecyclerView descendant checks implemented via ViewActions (gross)
                 if (error.actionDescription.startsWith("Check descendant view")) {
                     AssertionFailedError("Не прошла проверка: ${error.actionDescription}").apply {
@@ -80,7 +80,6 @@ class ReportFriendlyFailureHandler : FailureHandler {
                         .withViewDescription(minimizeViewDescription(error.viewDescription))
                         .build()
                 }
-            }
             error is AssertionError -> AssertionFailedError(error.normalizedMessage()).apply { initCause(error.cause) }
             error is NoMatchingRootException -> error.toNormalizedException()
             error is NoMatchingViewException -> error.toNormalizedException()
@@ -157,7 +156,7 @@ class ReportFriendlyFailureHandler : FailureHandler {
      * was   : LinearLayout$LayoutParams@1aeef385
      * become: LinearLayout$LayoutParams
      */
-    class RegexNormalizer(
+    private class RegexNormalizer(
         private val regex: Regex,
         private val replacement: String = ""
     ) : Normalizer {

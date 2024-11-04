@@ -8,6 +8,8 @@ import java.io.File
 
 internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
 
+    private val metricsPrefix = "build.metrics.test.builds.gradle.cache.remote"
+
     override fun setupProject(projectDir: File) {
         File(projectDir, "build.gradle.kts").writeText(
             """
@@ -21,6 +23,7 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             buildMetrics {
                    buildType.set("test")
                    environment.set(BuildEnvironment.CI)
+                   buildCacheObservableTasks(setOf("CustomTask"))
             }
             
             @CacheableTask
@@ -61,15 +64,8 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.FROM_CACHE
         )
 
-        result.assertHasMetric(
-            "build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci",
-            "0"
-        )
-
-        result.assertHasMetric(
-            "build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci",
-            "0"
-        )
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "0")
     }
 
     @Test
@@ -80,8 +76,10 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.SUCCESS
         )
 
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci", "0")
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci", "1")
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "1")
+        result.assertHasMetric("$metricsPrefix.task.type.hit;build_type=test;env=ci;task_type=CustomTask", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.miss;build_type=test;env=ci;task_type=CustomTask", "1")
     }
 
     @Test
@@ -92,8 +90,10 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.SUCCESS
         )
 
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci", "0")
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.hit;build_type=test;env=ci;task_type=CustomTask", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.miss;build_type=test;env=ci;task_type=CustomTask", "0")
     }
 
     @Test
@@ -104,8 +104,10 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.FROM_CACHE
         )
 
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci", "1")
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "1")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.hit;build_type=test;env=ci;task_type=CustomTask", "1")
+        result.assertHasMetric("$metricsPrefix.task.type.miss;build_type=test;env=ci;task_type=CustomTask", "0")
     }
 
     @Test
@@ -116,8 +118,10 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.SUCCESS
         )
 
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci", "0")
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci", "1")
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "1")
+        result.assertHasMetric("$metricsPrefix.task.type.hit;build_type=test;env=ci;task_type=CustomTask", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.miss;build_type=test;env=ci;task_type=CustomTask", "1")
     }
 
     @Test
@@ -128,8 +132,10 @@ internal class BuildCacheMetricsTest : BuildCacheTestFixture() {
             expectedOutcome = TaskOutcome.SUCCESS
         )
 
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.hit;build_type=test;env=ci", "0")
-        result.assertHasMetric("build.metrics.test.builds.gradle.cache.remote.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.hit;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.miss;build_type=test;env=ci", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.hit;build_type=test;env=ci;task_type=CustomTask", "0")
+        result.assertHasMetric("$metricsPrefix.task.type.miss;build_type=test;env=ci;task_type=CustomTask", "0")
     }
 
     private fun warmupAndBuild(

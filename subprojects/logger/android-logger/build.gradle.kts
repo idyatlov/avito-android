@@ -3,6 +3,10 @@ plugins {
     id("convention.publish-android-library")
 }
 
+android {
+    namespace = "com.avito.android.logger"
+}
+
 dependencies {
-    api(projects.subprojects.logger.logger)
+    api(project(":subprojects:logger:logger"))
 }

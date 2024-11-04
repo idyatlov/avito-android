@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-ANDROID_BUILDER_TAG=78633b8380a9
+ANDROID_BUILDER_TAG=d5425480c925
 ifeq ($(origin DOCKER_REGISTRY),undefined)
     IMAGE_ANDROID_BUILDER=avitotech/android-builder:$(ANDROID_BUILDER_TAG)
 else
@@ -24,7 +24,7 @@ includeAnnotation?=
 dry_run=false
 instrumentation=Ui
 stacktrace?=
-local_check=true
+offline?=
 
 # see Logging.md#Verbose-mode
 verbose?=
@@ -49,6 +49,10 @@ endef
 endif
 
 params?=
+
+ifdef offline
+params +=--offline
+endif
 
 ifdef testFilter
 params +=-PcustomFilter=$(testFilter)
@@ -101,10 +105,6 @@ ifdef ARTIFACTORY_URL
 params +=-PartifactoryUrl=$(ARTIFACTORY_URL)
 endif
 
-ifdef local_check
-params +=-PlocalCheck=$(local_check)
-endif
-
 # from: https://stackoverflow.com/questions/10858261/abort-makefile-if-variable-not-set
 #
 # Check that given variables are set and all have non-empty values,
@@ -150,7 +150,7 @@ clear_docker_containers:
 	fi
 
 publish_to_maven_local:
-	$(docker_command) ./gradlew $(params) publishToMavenLocal -PprojectVersion=local --no-configuration-cache
+	$(docker_command) ./gradlew $(params) publishToMavenLocal -PprojectVersion=10000000.0-local --no-configuration-cache
 
 stage_ui_tests:
 	make publish_to_maven_local
@@ -160,15 +160,11 @@ compile:
 	$(docker_command) ./gradlew $(params) compileAll
 
 assemble:
-	$(docker_command) ./gradlew $(params) assembleAll
+	$(docker_command) ./gradlew $(params) assemble
 
 # Configuration cache fails in instrumentation tasks: MBS-11856
 check:
-	$(docker_command) ./gradlew $(params) checkAll --no-configuration-cache
-
-# Configuration cache fails in instrumentation tasks: MBS-11856
-local_check:
-	$(docker_command) ./gradlew $(params) checkAll
+	$(docker_command) ./gradlew $(params) check
 
 .PHONY: build
 build:
@@ -260,3 +256,7 @@ internal_publish_gradle_cache_node_image:
 	docker pull gradle/build-cache-node:$(GRADLE_CACHE_NODE_TAG) && \
 	docker tag gradle/build-cache-node:$(GRADLE_CACHE_NODE_TAG) $(DOCKER_REGISTRY)/android/gradle-cache-node:$(GRADLE_CACHE_NODE_TAG) && \
 	docker push $(DOCKER_REGISTRY)/android/gradle-cache-node:$(GRADLE_CACHE_NODE_TAG)
+
+# Update depenedency lock-files after dependency update
+write_locks:
+	./gradlew dependencyGuardBaseline

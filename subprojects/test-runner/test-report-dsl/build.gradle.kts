@@ -1,11 +1,11 @@
 plugins {
-    id("convention.kotlin-jvm")
+    id("convention.kotlin-jvm-android")
     id("convention.publish-kotlin-library")
 }
 
 dependencies {
-    api(projects.subprojects.testRunner.testReportApi)
-    api(projects.subprojects.testRunner.testReportDslApi)
-    api(projects.subprojects.logger.logger)
+    api(project(":subprojects:test-runner:test-report-api"))
+    api(project(":subprojects:test-runner:test-report-dsl-api"))
+    api(project(":subprojects:logger:logger"))
     api(libs.junit)
 }

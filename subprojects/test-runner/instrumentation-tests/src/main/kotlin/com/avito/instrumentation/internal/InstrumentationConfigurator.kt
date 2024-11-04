@@ -4,68 +4,138 @@ import com.avito.instrumentation.InstrumentationTestsTask
 import com.avito.instrumentation.configuration.InstrumentationConfiguration
 import com.avito.instrumentation.configuration.InstrumentationFilter
 import com.avito.instrumentation.configuration.InstrumentationTestsPluginExtension
+import com.avito.instrumentation.configuration.report.ReportConfig
 import com.avito.instrumentation.configuration.target.TargetConfiguration
 import com.avito.instrumentation.configuration.target.scheduling.SchedulingConfiguration
 import com.avito.instrumentation.configuration.target.scheduling.reservation.StaticDeviceReservationConfiguration
 import com.avito.instrumentation.configuration.target.scheduling.reservation.TestsBasedDevicesReservationConfiguration
-import com.avito.runner.config.InstrumentationConfigurationData
-import com.avito.runner.config.InstrumentationFilterData
-import com.avito.runner.config.InstrumentationParameters
+import com.avito.instrumentation_args.InstrumentationArgsResolver
+import com.avito.logger.LoggerFactory
+import com.avito.logger.create
+import com.avito.reportviewer.model.ReportCoordinates
+import com.avito.runner.config.InstrumentationConfigurationCacheableData
 import com.avito.runner.config.Reservation
+import com.avito.runner.config.RunnerReportConfig
 import com.avito.runner.config.SchedulingConfigurationData
-import com.avito.runner.config.TargetConfigurationData
+import com.avito.runner.config.TargetConfigurationCacheableData
+import com.avito.runner.model.InstrumentationParameters
+import com.avito.runner.scheduler.suite.config.InstrumentationFilterData
+import com.avito.runner.scheduler.suite.config.RunStatus
 import com.avito.runner.scheduler.suite.filter.Filter
 import com.avito.test.model.DeviceName
-import org.gradle.api.file.Directory
-import org.gradle.api.provider.Provider
-import java.io.File
+import org.gradle.api.provider.Property
 
 internal class InstrumentationConfigurator(
     private val extension: InstrumentationTestsPluginExtension,
     private val configuration: InstrumentationConfiguration,
     private val instrumentationArgsResolver: InstrumentationArgsResolver,
-    private val outputDir: Provider<Directory>,
+    private val reportResolver: ReportResolver,
+    loggerFactory: LoggerFactory,
 ) : InstrumentationTaskConfigurator {
+
+    val logger = loggerFactory.create<InstrumentationConfigurator>()
 
     override fun configure(task: InstrumentationTestsTask) {
 
-        val instrumentationParameters = instrumentationArgsResolver.getInstrumentationArgsForTestTask()
+        val jobSlug: String? by lazy { validateJobSlug(configuration.jobSlug) }
+        val mergedInstrumentationParameters = getMergedInstrumentationParameters(jobSlug)
+        val targets = getTargets(configuration, mergedInstrumentationParameters)
 
         task.instrumentationConfiguration.set(
             getInstrumentationConfiguration(
                 configuration = configuration,
-                parentInstrumentationParameters = instrumentationParameters,
                 filters = extension.filters.map { getInstrumentationFilter(it) },
-                outputFolder = outputDir.get().asFile,
+                targets = targets.keys.toList(),
             )
         )
 
         task.suppressFailure.set(configuration.suppressFailure)
         task.suppressFlaky.set(configuration.suppressFlaky)
+        task.mergedInstrumentationParams.set(mergedInstrumentationParameters)
+        task.reportConfig.set(getRunnerReportConfig(jobSlug))
+        task.targetInstrumentationParams.set(targets.mapKeys { it.key.deviceName })
     }
 
     private fun getInstrumentationConfiguration(
         configuration: InstrumentationConfiguration,
-        parentInstrumentationParameters: InstrumentationParameters,
         filters: List<InstrumentationFilterData>,
-        outputFolder: File,
-    ): InstrumentationConfigurationData {
+        targets: List<TargetConfigurationCacheableData>,
+    ): InstrumentationConfigurationCacheableData {
 
-        val mergedInstrumentationParameters: InstrumentationParameters =
-            parentInstrumentationParameters
-                .applyParameters(configuration.instrumentationParams)
-
-        return InstrumentationConfigurationData(
+        return InstrumentationConfigurationCacheableData(
             name = configuration.name,
-            instrumentationParams = mergedInstrumentationParameters,
             reportSkippedTests = configuration.reportSkippedTests,
-            targets = getTargets(configuration, mergedInstrumentationParameters),
+            targets = targets,
             testRunnerExecutionTimeout = configuration.testRunnerExecutionTimeout,
             instrumentationTaskTimeout = configuration.instrumentationTaskTimeout,
+            singleTestRunTimeout = configuration.singleTestRunTimeout,
             filter = filters.singleOrNull { it.name == configuration.filter }
                 ?: throw IllegalStateException("Can't find filter=${configuration.filter}"),
-            outputFolder = outputFolder
         )
+    }
+
+    private fun getMergedInstrumentationParameters(jobSlug: String?): InstrumentationParameters {
+        val parentInstrumentationParameters = instrumentationArgsResolver.resolveTestTaskArgs()
+
+        return getConfigurationInstrumentationParameters(
+            parentInstrumentationParameters,
+            configuration.instrumentationParams,
+            jobSlug,
+        )
+    }
+
+    private fun getConfigurationInstrumentationParameters(
+        plugin: InstrumentationParameters,
+        configuration: Map<String, String>,
+        jobSlug: String?,
+    ): InstrumentationParameters {
+        val result = plugin.applyParameters(configuration)
+        val report = checkNotNull(reportResolver.getReport())
+        val shouldBeApplied = report is ReportConfig.ReportViewer.SendFromDevice
+        return if (shouldBeApplied && jobSlug != null) {
+            result.applyParameters(mapOf("jobSlug" to jobSlug))
+        } else {
+            result
+        }
+    }
+
+    private fun getRunnerReportConfig(
+        jobSlug: String?,
+    ): RunnerReportConfig {
+        return when (val config = checkNotNull(reportResolver.getReport())) {
+            ReportConfig.NoOp,
+            is ReportConfig.ReportViewer.SendFromDevice -> RunnerReportConfig.None
+
+            is ReportConfig.ReportViewer.SendFromRunner -> {
+                val dslReportConfig = if (jobSlug != null) {
+                    config.copy(jobSlug = jobSlug)
+                } else {
+                    config
+                }
+                RunnerReportConfig.ReportViewer(
+                    reportApiUrl = dslReportConfig.reportApiUrl,
+                    reportViewerUrl = dslReportConfig.reportViewerUrl,
+                    fileStorageUrl = dslReportConfig.fileStorageUrl,
+                    coordinates = ReportCoordinates(
+                        planSlug = dslReportConfig.planSlug,
+                        jobSlug = dslReportConfig.jobSlug,
+                        runId = reportResolver.getRunId()
+                    )
+                )
+            }
+        }
+    }
+
+    private fun validateJobSlug(jobSlug: Property<String>): String? {
+        return if (jobSlug.isPresent) {
+            val checkedJobSlug = jobSlug.get()
+            check(checkedJobSlug.isNotBlank()) {
+                "Failed to create RunnerReportConfig. Blank jobSlug"
+            }
+            checkedJobSlug
+        } else {
+            null
+        }
     }
 
     private fun validate(targetConfiguration: TargetConfiguration) {
@@ -82,22 +152,23 @@ internal class InstrumentationConfigurator(
     private fun getTargets(
         configuration: InstrumentationConfiguration,
         parentInstrumentationParameters: InstrumentationParameters
-    ): List<TargetConfigurationData> {
-        val result = configuration.targetsContainer.toList()
+    ): Map<TargetConfigurationCacheableData, InstrumentationParameters> {
+        val data = configuration.targetsContainer.toList()
             .filter { it.enabled }
             .map { getTargetConfiguration(it, parentInstrumentationParameters) }
+            .toTypedArray()
 
-        require(result.isNotEmpty()) {
+        require(data.isNotEmpty()) {
             "configuration ${configuration.name} must have at least one target"
         }
 
-        return result
+        return mapOf(*data)
     }
 
     private fun getTargetConfiguration(
         targetConfiguration: TargetConfiguration,
         parentInstrumentationParameters: InstrumentationParameters
-    ): TargetConfigurationData {
+    ): Pair<TargetConfigurationCacheableData, InstrumentationParameters> {
 
         validate(targetConfiguration)
 
@@ -105,16 +176,19 @@ internal class InstrumentationConfigurator(
 
         require(deviceName.isNotBlank()) { "target.deviceName should be set" }
 
-        return TargetConfigurationData(
+        val targetConfigurationData = TargetConfigurationCacheableData(
             name = targetConfiguration.name,
             reservation = getScheduling(targetConfiguration.scheduling).reservation,
             deviceName = DeviceName(deviceName),
-            instrumentationParams = parentInstrumentationParameters
-                .applyParameters(targetConfiguration.instrumentationParams)
-                .applyParameters(
-                    mapOf("deviceName" to deviceName)
-                )
         )
+
+        val instrumentationParams = parentInstrumentationParameters
+            .applyParameters(targetConfiguration.instrumentationParams)
+            .applyParameters(
+                mapOf("deviceName" to deviceName)
+            )
+
+        return targetConfigurationData to instrumentationParams
     }
 
     private fun getScheduling(schedulingConfiguration: SchedulingConfiguration): SchedulingConfigurationData {
@@ -127,6 +201,7 @@ internal class InstrumentationConfigurator(
                     count = currentReservation.count,
                     quota = schedulingConfiguration.quota.data()
                 )
+
                 is TestsBasedDevicesReservationConfiguration -> Reservation.TestsCountBasedReservation(
                     device = currentReservation.device,
                     quota = schedulingConfiguration.quota.data(),
@@ -134,6 +209,7 @@ internal class InstrumentationConfigurator(
                     maximum = currentReservation.maximum!!,
                     minimum = currentReservation.minimum
                 )
+
                 else -> throw RuntimeException("Unknown type of reservation")
             }
         )
@@ -175,13 +251,13 @@ internal class InstrumentationConfigurator(
         )
     }
 
-    private fun InstrumentationFilter.FromRunHistory.RunStatus.map(): com.avito.runner.config.RunStatus {
+    private fun InstrumentationFilter.FromRunHistory.RunStatus.map(): RunStatus {
         return when (this) {
-            InstrumentationFilter.FromRunHistory.RunStatus.Failed -> com.avito.runner.config.RunStatus.Failed
-            InstrumentationFilter.FromRunHistory.RunStatus.Success -> com.avito.runner.config.RunStatus.Success
-            InstrumentationFilter.FromRunHistory.RunStatus.Lost -> com.avito.runner.config.RunStatus.Lost
-            InstrumentationFilter.FromRunHistory.RunStatus.Skipped -> com.avito.runner.config.RunStatus.Skipped
-            InstrumentationFilter.FromRunHistory.RunStatus.Manual -> com.avito.runner.config.RunStatus.Manual
+            InstrumentationFilter.FromRunHistory.RunStatus.Failed -> RunStatus.Failed
+            InstrumentationFilter.FromRunHistory.RunStatus.Success -> RunStatus.Success
+            InstrumentationFilter.FromRunHistory.RunStatus.Lost -> RunStatus.Lost
+            InstrumentationFilter.FromRunHistory.RunStatus.Skipped -> RunStatus.Skipped
+            InstrumentationFilter.FromRunHistory.RunStatus.Manual -> RunStatus.Manual
         }
     }
 }

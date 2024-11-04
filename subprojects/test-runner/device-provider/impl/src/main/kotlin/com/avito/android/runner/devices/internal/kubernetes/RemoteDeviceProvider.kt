@@ -30,9 +30,14 @@ internal class RemoteDeviceProviderImpl(
             val podName = name
             logger.info("Found new pod: $podName")
             return bootDevice().onFailure { error ->
-                logger.warn(initializeFailureMessage(podName, ip), error)
-                val isDeleted = kubernetesApi.deletePod(podName)
-                logger.info("Pod $podName is deleted: $isDeleted")
+                try {
+                    val isDeleted = kubernetesApi.deletePod(podName)
+                    logger.warn(initializeFailureMessage(podName, kubernetesApi.getPodDescription(podName), ip), error)
+                    logger.info("Pod $podName is deleted: $isDeleted")
+                } catch (t: Throwable) {
+                    logger.warn("Fail to delete pod $podName", t)
+                    throw t
+                }
             }
         }
     }
@@ -41,9 +46,14 @@ internal class RemoteDeviceProviderImpl(
         return pod.getDevice()
     }
 
-    private fun initializeFailureMessage(podName: String, podIp: String?): String {
+    private fun initializeFailureMessage(
+        podName: String,
+        podDescription: String,
+        podIp: String?
+    ): String {
         return buildString {
             append("Pod $podName can't load device. Disconnect and delete.")
+            append("Pod: $podDescription.")
             if (!podIp.isNullOrBlank()) {
                 appendLine()
                 append("Check device logs in artifacts: ${emulatorsLogsReporter.getLogFile(podIp)}")

@@ -1,7 +1,6 @@
 package com.avito.runner.config
 
 import com.avito.android.stats.StatsDConfig
-import com.avito.runner.scheduler.report.ReportViewerConfig
 import com.avito.runner.scheduler.runner.model.ExecutionParameters
 import com.avito.runner.scheduler.suite.filter.ImpactAnalysisResult
 import com.avito.utils.gradle.KubernetesCredentials
@@ -10,7 +9,7 @@ import java.io.Serializable
 import java.time.Duration
 
 public data class RunnerInputParams(
-    val mainApk: File?,
+    val mainApk: File,
     val testApk: File,
     val instrumentationConfiguration: InstrumentationConfigurationData,
     val executionParameters: ExecutionParameters,
@@ -24,12 +23,10 @@ public data class RunnerInputParams(
     val suppressFlaky: Boolean,
     val impactAnalysisResult: ImpactAnalysisResult,
     val outputDir: File,
+    val macrobenchmarkOutputDir: File?,
     val verdictFile: File,
-    val fileStorageUrl: String,
     val statsDConfig: StatsDConfig,
-    val reportViewerConfig: ReportViewerConfig?,
     val proguardMappings: List<File>,
-    val uploadTestArtifacts: Boolean,
     val saveTestArtifactsToOutputs: Boolean,
     val useLegacyExtensionsV1Beta: Boolean,
     val adbPullTimeout: Duration,

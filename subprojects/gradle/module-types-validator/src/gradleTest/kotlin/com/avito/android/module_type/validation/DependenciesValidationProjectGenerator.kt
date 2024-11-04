@@ -19,6 +19,7 @@ internal object DependenciesValidationProjectGenerator {
      *      - :public
      *      - :impl
      *      - :fake
+     *      - :debug
      *  - :lib-b
      *      - :public
      *      - :impl
@@ -35,6 +36,7 @@ internal object DependenciesValidationProjectGenerator {
      * :lib-c:demo --> :lib-c:impl
      * :lib-c:demo --> :lib-b:fake
      * :lib-c:demo -.-> :lib-a:fake
+     * :lib-c:demo -.-> :lib-a:debug
      * :lib-c:demo -.-> :lib-a:impl
      * :lib-c:impl --> :lib-b:public
      * :lib-b:public --> :lib-a:public
@@ -42,9 +44,11 @@ internal object DependenciesValidationProjectGenerator {
      * :lib-b:fake --> :lib-b:public
      * :lib-b:demo --> :lib-b:impl
      * :lib-b:demo -.-> :lib-a:fake
+     * :lib-b:demo -.-> :lib-a:debug
      * :lib-b:demo -.-> :lib-a:impl
      * :lib-a:impl --> :lib-a:public
      * :lib-a:fake --> :lib-a:public
+     * :lib-a:debug --> :lib-a:public
      * ```
      *
      * > Use [mermaid](https://mermaid.live/edit#) for visualization
@@ -81,6 +85,11 @@ internal object DependenciesValidationProjectGenerator {
                         createModule(
                             logicalModuleName = "lib-a",
                             functionalType = FunctionalType.Fake,
+                            dependentModules = setOf(":lib-a:public")
+                        ),
+                        createModule(
+                            logicalModuleName = "lib-a",
+                            functionalType = FunctionalType.Debug,
                             dependentModules = setOf(":lib-a:public")
                         ),
                     ),
@@ -155,7 +164,7 @@ internal object DependenciesValidationProjectGenerator {
             plugins = plugins,
             buildGradleExtra = """
                 module {
-                    type = new DefaultModuleType(new StubApplication(), FunctionalType.${functionalType.name})
+                    type = new ModuleType(new StubApplication(), FunctionalType.${functionalType.name})
                 }
             """.trimIndent(),
             dependencies = dependentModules.map {
@@ -186,9 +195,9 @@ internal object DependenciesValidationProjectGenerator {
                 .toSet(),
             buildGradleExtra = """
                 module {
-                    type = new DefaultModuleType(
+                    type = new ModuleType(
                         new StubApplication(), 
-                        FunctionalType.${FunctionalType.Application.name}
+                        FunctionalType.${FunctionalType.DemoApp.name}
                     )
                     validation { 
                         missingImplementations {
